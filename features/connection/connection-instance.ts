@@ -24,3 +24,12 @@ export const publishSelfToBroker = async (id: string) => {
     });
   });
 };
+
+export const connectToPeer = async (id: string) => {
+  const conn = getConnection()
+  const dataCon = conn.connect(id)
+
+  dataCon.on("open", () => {
+    console.log("peer connected ", id)
+  })
+}

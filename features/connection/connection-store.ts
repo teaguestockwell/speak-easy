@@ -1,29 +1,35 @@
 import create from "zustand";
-import { publishSelfToBroker } from "./connection";
+import { connectToPeer, publishSelfToBroker } from "./connection-instance";
 
 export type ConnectionState = {
   status:
     | "enter-self-id"
     | "connecting-self"
     | "awaiting-peer"
+    | 'connecting-peer'
     | "connected"
     | "disconnected";
   selfId: string;
+  peerId: string;
   messageStack: string[];
 };
 
 export type ConnectionActions = {
   initSelf: () => Promise<void>;
   setSelfId: (e: { target: { value: string } }) => void;
+  setPeerId: (e: { target: { value: string } }) => void;
+  setPeer: () => Promise<void>
 };
 
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     selfId: "",
+    peerId: "",
     status: "enter-self-id",
     messageStack: [],
 
     setSelfId: (e) => set({ selfId: e.target.value }),
+    setPeerId: (e) => set({ peerId: e.target.value }),
     initSelf: async () => {
       const id = get().selfId;
       if (!id) {
@@ -34,8 +40,15 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       await publishSelfToBroker(id);
       set({ status: "awaiting-peer" });
     },
+    setPeer: async () => {
+      try {
+        set({status: 'connecting-peer'})
+        await connectToPeer(get().peerId);
+      } catch {
+        set({status: 'awaiting-peer'})
+      }
+    }
   })
 );
 
-const { setSelfId, initSelf } = connectionStore.getState();
-export const connectionActions = { setSelfId, initSelf };
+export const connectionActions = connectionStore.getState();
