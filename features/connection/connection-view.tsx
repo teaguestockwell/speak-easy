@@ -22,7 +22,18 @@ export const ConnectionView = () => {
     );
   }
 
-  if (status === 'connecting-peer') {
+  if (s.status == 'awaiting-peer') {
+    return (
+      <div className={cn.root}>
+        <span>await to connect to a peer</span>
+        <label>enter peer id</label>
+        <input value={s.peerId} onChange={connectionActions.setPeerId} />
+        <button onClick={connectionActions.setPeer}>connect</button>
+      </div>
+    )
+  }
+
+  if (s.status === 'connecting-peer') {
     return (
       <div className={cn.root}>
         <span>connecting to peer</span>
@@ -30,12 +41,13 @@ export const ConnectionView = () => {
     )
   }
 
-  return (
-    <div className={cn.root}>
-      <span>await to connect to a peer</span>
-      <label>enter peer id</label>
-      <input value={s.peerId} onChange={connectionActions.setPeerId} />
-      <button onClick={connectionActions.setPeer}>connect</button>
-    </div>
-  )
+  if (s.status === 'connected') {
+    return (
+      <div className={cn.root}>
+        <span>connected to {s.peerId}</span>
+      </div>
+    )
+  }
+
+  return <div>{s.status}</div>;
 };

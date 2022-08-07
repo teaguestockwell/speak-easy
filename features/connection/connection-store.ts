@@ -18,7 +18,7 @@ export type ConnectionActions = {
   initSelf: () => Promise<void>;
   setSelfId: (e: { target: { value: string } }) => void;
   setPeerId: (e: { target: { value: string } }) => void;
-  setPeer: () => Promise<void>
+  setPeer: () => void
 };
 
 export const connectionStore = create<ConnectionState & ConnectionActions>(
@@ -40,10 +40,12 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       await publishSelfToBroker(id);
       set({ status: "awaiting-peer" });
     },
-    setPeer: async () => {
+    setPeer: () => {
       try {
         set({status: 'connecting-peer'})
-        await connectToPeer(get().peerId);
+        const onConnect = () => set({status: 'connected'})
+        const { peerId } = get();
+        connectToPeer(peerId, onConnect);
       } catch {
         set({status: 'awaiting-peer'})
       }
