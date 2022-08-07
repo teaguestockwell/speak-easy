@@ -1,0 +1,26 @@
+{
+  "name": "speak-easy",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3006",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "next": "12.2.4",
+    "peerjs": "^1.4.6",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.6.4",
+    "@types/react": "18.0.15",
+    "@types/react-dom": "18.0.6",
+    "eslint": "8.21.0",
+    "eslint-config-next": "12.2.4",
+    "typescript": "4.7.4"
+  }
+}
