@@ -1,13 +1,56 @@
-.root {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.navRoot {
+.topNavRoot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: center;
+  border-bottom: 1px solid #000;
+}
+
+.msgsRoot {
+  position: absolute;
+  top: 108px;
+  left: 0;
+  right: 0;
+  bottom: 108px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  justify-content: start;
+  gap: 8px;
+}
+
+.bottomNavRoot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-around;
+  gap: 8px;
+  border-top: 1px solid #000;
+  height: 100px;
+}
+
+.text {
+  height: 80px;
+  width: 80vw;
+  max-width: 500px;
+}
+
+.t {
+  width: 80vw;
+  max-width: 500px;
+}
+
+.col {
+  gap: 8px;
+  display: flex;
+  flex-direction: column;
 }
