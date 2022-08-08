@@ -983,6 +983,11 @@ has@^1.0.3:
   dependencies:
     function-bind "^1.1.1"
 
+human-id@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/human-id/-/human-id-4.0.0.tgz#827426125ffd7d8e290b1f1a62a09bca61e2d169"
+  integrity sha512-pui0xZRgeAlaRt0I9r8N2pNlbNmluvn71EfjKRpM7jOpZbuHe5mm76r67gcprjw/Nd+GpvB9C3OlTbh7ZKLg7A==
+
 ignore@^5.2.0:
   version "5.2.0"
   resolved "https://registry.yarnpkg.com/ignore/-/ignore-5.2.0.tgz#6d3bac8fa7fe0d45d9f9be7bac2fc279577e345a"
