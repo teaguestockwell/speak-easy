@@ -7,16 +7,8 @@ export const Nav = () => {
 
   return (
     <div className={cn.topNavRoot}>
-      <pre>
-        {JSON.stringify(
-          {
-            "my id": s.selfId,
-            "peer id": s.peerId,
-          },
-          null,
-          2
-        )}
-      </pre>
+      <span>{"my id: " + s.selfId}</span>
+      <span>{"peer id: " + s.peerId}</span>
     </div>
   );
 };
@@ -51,14 +43,8 @@ export const ConnectionView = (): JSX.Element => {
   if (s.status == "awaiting-peer") {
     return (
       <div className={cn.bottomNavRoot}>
-        <div className={cn.col}>
-          <label>enter peers id</label>
-          <input
-            className={cn.t}
-            value={s.peerId}
-            onChange={connectionActions.setPeerId}
-          />
-        </div>
+        <label>enter peers id</label>
+        <input value={s.peerId} onChange={connectionActions.setPeerId} />
         <button onClick={connectionActions.callPeer}>connect</button>
       </div>
     );
@@ -87,7 +73,9 @@ export const ConnectionView = (): JSX.Element => {
           {s.msgs.map((m) => (
             <pre
               key={m.createdAt + m.receiverId}
-              style={{ alignSelf: m.senderId === s.selfId ? "flex-end" : "flex-start" }}
+              style={{
+                alignSelf: m.senderId === s.selfId ? "flex-end" : "flex-start",
+              }}
             >
               {JSON.stringify(m, null, 2)}
             </pre>
