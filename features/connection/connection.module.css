@@ -24,6 +24,17 @@
   gap: 10px;
 }
 
+.msgsRootCall {
+  position: absolute;
+  top: 82px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+
 .bottomNavRoot {
   position: absolute;
   bottom: 0;
@@ -49,4 +60,12 @@
   gap: 10px;
   display: flex;
   flex-direction: column;
+}
+
+.selfVid {
+  width: 20%
+}
+
+.peerVid {
+  width: 100%
 }

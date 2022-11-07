@@ -1,6 +1,6 @@
 import create from "zustand";
-import type { Peer, DataConnection } from "peerjs";
-import humanid from 'human-id'
+import type { Peer, DataConnection, MediaConnection } from "peerjs";
+import humanid from "human-id";
 
 type MsgEvent = {
   senderId: string;
@@ -20,10 +20,12 @@ export type ConnectionState = {
     | "awaiting-peer"
     | "connecting-peer"
     | "connected"
+    | "calling-peer"
+    | "call-connected";
 };
 
 const getInitState = (): ConnectionState => ({
-  selfId: humanid('-').toLowerCase(),
+  selfId: humanid("-").toLowerCase(),
   peerId: "",
   msg: "",
   msgs: [],
@@ -35,13 +37,17 @@ export type ConnectionActions = {
   setPeerId: (e: { target: { value: string } }) => void;
   setMsg: (e: { target: { value: string } }) => void;
   publishToBroker: () => Promise<void>;
-  callPeer: () => void;
+  connectPeer: () => void;
   emit: () => void;
   receive: (e: MsgEvent) => void;
+  callPeer: () => void;
 };
 
-let _peer: Peer | null = null;
-let _dataCon: DataConnection | null;
+let _peer: Peer | undefined;
+let _dataCon: DataConnection | undefined;
+let _selfMediaStream: MediaStream | undefined;
+let _peerMediaStream: MediaStream | undefined;
+let _peerMediaCon: MediaConnection | undefined;
 
 const getPeerJs = async () => {
   const PeerJs = (await import("peerjs")).default;
@@ -64,6 +70,36 @@ const getDataConn = () => {
     );
   }
   return _dataCon;
+};
+
+const createSelfMediaStream = async () => {
+  try {
+    _selfMediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+  } catch (e) {
+    alert("cant find audio video device to call with");
+  }
+  return _selfMediaStream;
+};
+
+export const getSelfMediaStream = () => {
+  if (!_selfMediaStream) {
+    throw new Error(
+      "media stream not initialized, you are not in a call with a peer"
+    );
+  }
+  return _selfMediaStream;
+};
+
+export const getPeerMediaStream = () => {
+  if (!_peerMediaStream) {
+    throw new Error(
+      "media stream not initialized, you are not in a call with a peer"
+    );
+  }
+  return _peerMediaStream;
 };
 
 export const connectionStore = create<ConnectionState & ConnectionActions>(
@@ -98,8 +134,43 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         });
         set({ status: "connected", peerId: c.peer });
       });
+      _peer.on("call", (call) => {
+        const { peerId } = get();
+        if (!peerId) {
+          throw new Error("cant connect to peer without id");
+        }
+
+        const willAnswer = confirm(`answer call from ${peerId}?`);
+
+        if (!willAnswer) {
+          call.close();
+          return;
+        }
+
+        createSelfMediaStream().then((selfStream) => {
+          if (!selfStream) {
+            call.close();
+            return;
+          }
+
+          call.answer(selfStream);
+
+          call.on("error", (e) => {
+            alert(e.cause);
+            set({ status: "connected" });
+          });
+          call.on("close", () => {
+            alert("call ended");
+            set({ status: "connected" });
+          });
+          call.on("stream", (peerMediaStream) => {
+            _peerMediaStream = peerMediaStream;
+            set({ status: "call-connected" });
+          });
+        });
+      });
     },
-    callPeer: () => {
+    connectPeer: () => {
       const { peerId } = get();
       if (!peerId) {
         throw new Error("cant connect to peer without id");
@@ -120,6 +191,35 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         get().receive(data as any);
       });
     },
+    callPeer: () => {
+      const { peerId } = get();
+      if (!peerId) {
+        throw new Error("cant connect to peer without id");
+      }
+
+      set({ status: "calling-peer" });
+
+      createSelfMediaStream().then((selfStream) => {
+        if (!selfStream) {
+          return;
+        }
+
+        _peerMediaCon = getPeer().call(peerId, selfStream);
+
+        _peerMediaCon.on("error", (e) => {
+          alert(e.cause);
+          set({ status: "connected" });
+        });
+        _peerMediaCon.on("close", () => {
+          alert("call ended");
+          set({ status: "connected" });
+        });
+        _peerMediaCon.on("stream", (peerMediaStream) => {
+          _peerMediaStream = peerMediaStream;
+          set({ status: "call-connected" });
+        });
+      });
+    },
     emit: () => {
       const { msg, selfId, peerId, receive } = get();
       const e: MsgEvent = {
@@ -135,8 +235,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       getDataConn().send(e);
     },
     receive: (e) => {
-      console.log(e);
-
       set((p) => ({
         msgs: [...p.msgs, e],
       }));

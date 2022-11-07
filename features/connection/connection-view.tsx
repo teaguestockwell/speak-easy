@@ -1,6 +1,11 @@
 import React from "react";
 import cn from "./connection.module.css";
-import { connectionStore, connectionActions } from "./connection-store";
+import {
+  connectionStore,
+  connectionActions,
+  getSelfMediaStream,
+  getPeerMediaStream,
+} from "./connection-store";
 
 export const Nav = () => {
   const s = connectionStore((s) => s);
@@ -15,6 +20,21 @@ export const Nav = () => {
 
 export const ConnectionView = (): JSX.Element => {
   const s = connectionStore((s) => s);
+  const [selfVideo] = React.useState(React.createRef<HTMLVideoElement>());
+  const [peerVideo] = React.useState(React.createRef<HTMLVideoElement>());
+
+  React.useLayoutEffect(() => {
+    if (
+      s.status === "call-connected" &&
+      selfVideo.current &&
+      peerVideo.current
+    ) {
+      selfVideo.current.srcObject = getSelfMediaStream();
+      peerVideo.current.srcObject = getPeerMediaStream();
+      selfVideo.current.play();
+      peerVideo.current.play();
+    }
+  });
 
   if (s.status === "enter-self-id") {
     return (
@@ -45,7 +65,7 @@ export const ConnectionView = (): JSX.Element => {
       <div className={cn.bottomNavRoot}>
         <label>enter peers id</label>
         <input value={s.peerId} onChange={connectionActions.setPeerId} />
-        <button onClick={connectionActions.callPeer}>connect</button>
+        <button onClick={connectionActions.connectPeer}>connect</button>
       </div>
     );
   }
@@ -68,6 +88,7 @@ export const ConnectionView = (): JSX.Element => {
             onChange={connectionActions.setMsg}
           />
           <button onClick={connectionActions.emit}>send</button>
+          <button onClick={connectionActions.callPeer}>call</button>
         </div>
         <div className={cn.msgsRoot}>
           {s.msgs.map((m) => (
@@ -80,6 +101,27 @@ export const ConnectionView = (): JSX.Element => {
               {JSON.stringify(m, null, 2)}
             </pre>
           ))}
+        </div>
+      </>
+    );
+  }
+
+  if (s.status === "calling-peer") {
+    return (
+      <>
+        <div className={cn.bottomNavRoot}>
+          <span>calling to peer...</span>
+        </div>
+      </>
+    );
+  }
+
+  if (s.status === "call-connected") {
+    return (
+      <>
+        <div className={cn.msgsRootCall}>
+          <video ref={selfVideo} className={cn.selfVid} />
+          <video ref={peerVideo} className={cn.peerVid} />
         </div>
       </>
     );
