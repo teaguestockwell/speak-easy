@@ -120,7 +120,7 @@ export const ConnectionView = (): JSX.Element => {
     return (
       <>
         <div className={cn.msgsRootCall}>
-          <video ref={selfVideo} className={cn.selfVid} />
+          <video ref={selfVideo} className={cn.selfVid} muted />
           <video ref={peerVideo} className={cn.peerVid} />
         </div>
       </>
