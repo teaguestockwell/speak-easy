@@ -2,9 +2,8 @@ import create from "zustand";
 import type { Peer, DataConnection, MediaConnection } from "peerjs";
 import humanid from "human-id";
 
-type MsgEvent = {
+export type MsgEvent = {
   senderId: string;
-  receiverId: string;
   createdAt: number;
   msg: string;
 };
@@ -224,7 +223,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const { msg, selfId, peerId, receive } = get();
       const e: MsgEvent = {
         senderId: selfId,
-        receiverId: peerId,
         createdAt: Date.now(),
         msg,
       };

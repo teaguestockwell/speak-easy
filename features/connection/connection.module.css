@@ -12,10 +12,10 @@
 
 .msgsRoot {
   position: absolute;
-  top: 82px;
+  top: 66px;
   left: 0;
   right: 0;
-  bottom: 144px;
+  bottom: 111px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -49,4 +49,52 @@
   gap: var(--pad);
   display: flex;
   flex-direction: column;
+}
+
+.row {
+  gap: var(--pad);
+  display: flex;
+}
+
+.bubbleRoot {
+  width: 80%;
+  max-width: 400px;
+  border-radius: calc(var(--rad) * 2);
+  display: flex;
+  flex-direction: column;
+  color: var(--bgc-1);
+  border: var(--border);
+  padding: var(--pad);
+  gap: 4px;
+}
+
+.bubbleTxt {
+  display: flex;
+  white-space: pre-wrap;
+  color: var(--fc-1);
+}
+
+.bubbleTime {
+  display: flex;
+  color: var(--fc-1);
+  justify-content: flex-end;
+}
+
+.but {
+  background-color: var(--fc-0);
+  color: var(--bgc-0);
+  flex: 1;
+  -webkit-box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.2);
+  -moz-box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.2);
+}
+
+.but:hover,
+.but:focus {
+  cursor: pointer;
+  opacity: 0.8;
+  transform: translateY(-1px);
+  -webkit-box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.5);
+  -moz-box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.5);
 }

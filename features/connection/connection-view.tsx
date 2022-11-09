@@ -5,6 +5,7 @@ import {
   connectionActions,
   getSelfMediaStream,
   getPeerMediaStream,
+  MsgEvent,
 } from "./connection-store";
 import { WithMainAxisFlexDir } from "../../hooks/use-main-axis-flex-dir";
 
@@ -22,6 +23,24 @@ export const Nav = () => {
     </div>
   );
 };
+
+const _ChatBubble = (e: MsgEvent) => {
+  const time = new Date(e.createdAt).toLocaleTimeString();
+  const style = {
+    alignSelf:
+      e.senderId === connectionStore.getState().selfId
+        ? "flex-end"
+        : "flex-start",
+  };
+  return (
+    <div className={cn.bubbleRoot} style={style}>
+      <span className={cn.bubbleTxt}>{e.msg}</span>
+      <span className={cn.bubbleTime}>{time}</span>
+    </div>
+  );
+};
+
+const ChatBubble = React.memo(_ChatBubble);
 
 export const ConnectionView = (): JSX.Element => {
   const s = connectionStore((s) => s);
@@ -92,19 +111,18 @@ export const ConnectionView = (): JSX.Element => {
               }
             }}
           />
-          <button onClick={connectionActions.emit}>send</button>
-          <button onClick={connectionActions.callPeer}>call</button>
+          <div className={cn.row}>
+            <button className={cn.but} onClick={connectionActions.emit}>
+              send
+            </button>
+            <button className={cn.but} onClick={connectionActions.callPeer}>
+              call
+            </button>
+          </div>
         </div>
         <div className={cn.msgsRoot}>
           {s.msgs.map((m) => (
-            <pre
-              key={m.createdAt + m.receiverId}
-              style={{
-                alignSelf: m.senderId === s.selfId ? "flex-end" : "flex-start",
-              }}
-            >
-              {JSON.stringify(m, null, 2)}
-            </pre>
+            <ChatBubble key={m.createdAt + m.senderId} {...m} />
           ))}
         </div>
       </>
