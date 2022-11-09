@@ -57,6 +57,11 @@ export const BottomNav = (): JSX.Element | null => {
   if (s.status === "connected") {
     return (
       <div className={cn.root}>
+        {s.isPeerTyping && (
+          <div className={cn.row}>
+            <span>{s.peerId + " is typing..."}</span>
+          </div>
+        )}
         <div className={cn.row}>
           <textarea
             className={cn.ta}

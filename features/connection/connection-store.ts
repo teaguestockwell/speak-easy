@@ -1,6 +1,7 @@
 import create from "zustand";
 import type { Peer, DataConnection, MediaConnection } from "peerjs";
 import humanid from "human-id";
+import deb from "lodash/debounce";
 
 export type MsgEvent = {
   senderId: string;
@@ -21,6 +22,7 @@ export type ConnectionState = {
     | "connected"
     | "calling-peer"
     | "call-connected";
+  isPeerTyping: boolean;
 };
 
 const getInitState = (): ConnectionState => ({
@@ -29,6 +31,7 @@ const getInitState = (): ConnectionState => ({
   msg: "",
   msgs: [],
   status: "enter-self-id",
+  isPeerTyping: false,
 });
 
 export type ConnectionActions = {
@@ -111,6 +114,10 @@ const disposeVideo = () => {
   _peerMediaCon?.close();
 };
 
+const onPeerType = deb(() => {
+  connectionStore.setState({ isPeerTyping: false });
+}, 5000);
+
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     ...getInitState(),
@@ -125,7 +132,10 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
     },
     setSelfId: (e) => set({ selfId: e.target.value.toLowerCase() }),
     setPeerId: (e) => set({ peerId: e.target.value.toLowerCase() }),
-    setMsg: (e) => set({ msg: e.target.value }),
+    setMsg: (e) => {
+      set({ msg: e.target.value });
+      _dataCon?.send(1);
+    },
     publishToBroker: async () => {
       const { selfId } = get();
       if (!selfId) {
@@ -266,7 +276,12 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         if (e === 0) {
           disposeVideo();
           set({ status: "connected" });
-          return
+          return;
+        }
+        if (e === 1) {
+          connectionStore.setState({ isPeerTyping: true });
+          onPeerType();
+          return;
         }
       }
 

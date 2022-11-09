@@ -17,41 +17,43 @@ const Nav = (p: {
 };
 
 export const TopNav = (): JSX.Element | null => {
-  const s = connectionStore((s) => s);
+  const status = connectionStore((s) => s.status);
+  const peerId = connectionStore((s) => s.peerId);
+  const selfId = connectionStore((s) => s.selfId);
 
-  if (s.status === "enter-self-id") {
+  if (status === "enter-self-id") {
     return null;
   }
-  if (s.status === "connecting-self") {
+  if (status === "connecting-self") {
     return null;
   }
-  if (s.status == "awaiting-peer") {
-    return <Nav center={<span>{"my id: " + s.selfId}</span>} />;
+  if (status == "awaiting-peer") {
+    return <Nav center={<span>{"my id: " + selfId}</span>} />;
   }
-  if (s.status === "connecting-peer") {
+  if (status === "connecting-peer") {
     return null;
   }
-  if (s.status === "connected") {
+  if (status === "connected") {
     return (
       <Nav
         left={
           <Icon name="back" onClick={connectionActions.backToPeerSelection} />
         }
-        center={<span>{s.peerId}</span>}
+        center={<span>{peerId}</span>}
         right={<Icon name="call" onClick={connectionActions.callPeer} />}
       />
     );
   }
-  if (s.status === "calling-peer") {
+  if (status === "calling-peer") {
     return null;
   }
-  if (s.status === "call-connected") {
+  if (status === "call-connected") {
     return (
       <Nav
         left={<Icon name="back" onClick={connectionActions.endCall} />}
-        center={<span>{s.peerId}</span>}
+        center={<span>{peerId}</span>}
       />
     );
   }
-  return s.status;
+  return status;
 };
