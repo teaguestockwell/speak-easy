@@ -21,7 +21,9 @@ export const BottomNav = (): JSX.Element | null => {
             }}
           />
         </div>
-        <Button onClick={connectionActions.publishToBroker}>next</Button>
+        <Button className={cn.but} onClick={connectionActions.publishToBroker}>
+          next
+        </Button>
       </div>
     );
   }
@@ -42,7 +44,9 @@ export const BottomNav = (): JSX.Element | null => {
             }
           }}
         />
-        <Button onClick={connectionActions.connectPeer}>connect</Button>
+        <Button className={cn.but} onClick={connectionActions.connectPeer}>
+          connect
+        </Button>
       </div>
     );
   }
@@ -63,8 +67,9 @@ export const BottomNav = (): JSX.Element | null => {
           }}
         />
         <div className={cn.row}>
-          <Button onClick={connectionActions.emit}>send</Button>
-          <Button onClick={connectionActions.callPeer}>call</Button>
+          <Button className={cn.but} onClick={connectionActions.emit}>
+            send
+          </Button>
         </div>
       </div>
     );

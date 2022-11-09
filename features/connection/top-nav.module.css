@@ -1,9 +1,31 @@
 .root {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
   gap: var(--pad);
   border-bottom: var(--border);
-  padding: var(--pad);
+  padding-left: var(--pad);
+  padding-right: var(--pad);
   height: 58px;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: calc(var(--pad) * 2);
+}
+
+.center {
+  display: flex;
+  flex-grow: 999;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--pad) * 2);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--pad) * 2);
 }

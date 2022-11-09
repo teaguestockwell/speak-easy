@@ -43,27 +43,15 @@ body {
 }
 
 input,
-textarea,
-pre,
-button {
+textarea {
   width: auto;
   border: none;
   border-radius: var(--rad);
-  margin: 0;
   min-height: 40px;
 }
 
-pre {
-  white-space: pre-line;
-}
-
 button {
-  min-width: 60px;
-  max-height: 40px;
   cursor: pointer;
-  background-color: var(--fc-0);
-  color: var(--bgc-0);
-  flex: 1;
   -webkit-box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.2);
   -moz-box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.2);
   box-shadow: 0px 0px 6px 2px rgba(0, 0, 0, 0.2);

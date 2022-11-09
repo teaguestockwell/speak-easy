@@ -20,7 +20,7 @@ export const Loader = (): JSX.Element | null => {
       return [""];
     }
     if (s.status === "calling-peer") {
-      return [`calling to ${s.peerId}`];
+      return [`calling ${s.peerId}`];
     }
     if (s.status === "call-connected") {
       return [""];

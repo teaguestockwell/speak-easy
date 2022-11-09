@@ -42,6 +42,7 @@ export type ConnectionActions = {
   callPeer: () => void;
   endCall: () => void;
   dispose: () => void;
+  backToPeerSelection: () => void;
 };
 
 let _peer: Peer | undefined;
@@ -111,6 +112,13 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       get().endCall();
       set(getInitState());
     },
+    backToPeerSelection: () => {
+      _selfMediaStream?.getTracks().forEach((t) => t.stop());
+      _peerMediaStream?.getTracks().forEach((t) => t.stop());
+      _peerMediaCon?.close();
+      _dataCon?.close();
+      set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
+    },
     setSelfId: (e) => set({ selfId: e.target.value }),
     setPeerId: (e) => set({ peerId: e.target.value }),
     setMsg: (e) => set({ msg: e.target.value }),
@@ -125,19 +133,20 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const PeerJs = await getPeerJs();
       _peer = new PeerJs(selfId);
 
-      _peer.on("disconnected", get().dispose);
-      _peer.on("close", get().dispose);
-      _peer.on("error", get().dispose);
+      _peer.on("disconnected", get().backToPeerSelection);
+      _peer.on("close", get().backToPeerSelection);
+      _peer.on("error", get().backToPeerSelection);
       _peer.on("open", () => {
         set({ status: "awaiting-peer" });
       });
+    
       _peer.on("connection", (c) => {
         _dataCon = c;
-        _dataCon.on("close", get().dispose);
-        _dataCon.on("error", get().dispose);
+        _dataCon.on("close", get().backToPeerSelection);
+        _dataCon.on("error", get().backToPeerSelection);
         _dataCon.on("iceStateChanged", (s) => {
           if (s === "closed" || s === "disconnected" || s === "failed") {
-            get().dispose();
+            get().backToPeerSelection();
           }
         });
         _dataCon.on("data", (data) => {
@@ -195,17 +204,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _dataCon.on("open", () => {
         set({ status: "connected" });
       });
-      _dataCon.on("error", (e) => {
-        alert(e.cause);
-        set({ status: "awaiting-peer", peerId: "" });
-      });
+      _dataCon.on("error", get().backToPeerSelection);
+      _dataCon.on("close", get().backToPeerSelection);
       _dataCon.on("data", (data) => {
         get().receive(data as any);
       });
       _dataCon.on("iceStateChanged", (s) => {
         if (s === "closed" || s === "disconnected" || s === "failed") {
-          get().endCall();
-          set({ status: "awaiting-peer", peerId: "" });
+          get().backToPeerSelection();
         }
       });
     },

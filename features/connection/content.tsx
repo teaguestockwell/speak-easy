@@ -26,10 +26,10 @@ export const Content = (): JSX.Element | null => {
     }
   });
 
-  const flex = <div className={cn.flex}/>
+  const flex = <div className={cn.flex} />;
 
   if (s.status === "enter-self-id") {
-    return flex
+    return flex;
   }
   if (s.status === "connecting-self") {
     return flex;
@@ -62,14 +62,14 @@ export const Content = (): JSX.Element | null => {
       <WithMainAxisFlexDir>
         {(flexDirection) => {
           const vidStyle: React.CSSProperties = {
-            width: flexDirection === "row" ? "48%" : undefined,
-            height: flexDirection === "column" ? "48%" : undefined,
+            width: flexDirection === "row" ? "46%" : undefined,
+            height: flexDirection === "column" ? "46%" : undefined,
             flex: "1",
             objectFit: "cover",
+            borderRadius: "var(--rad)"
           };
           return (
             <div className={cn.call} style={{ flexDirection }}>
-              <Button onClick={connectionActions.endCall}>end call</Button>
               <video ref={selfVideo} style={vidStyle} muted />
               <video ref={peerVideo} style={vidStyle} />
             </div>
