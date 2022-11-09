@@ -40,6 +40,8 @@ export type ConnectionActions = {
   emit: () => void;
   receive: (e: MsgEvent) => void;
   callPeer: () => void;
+  endCall: () => void;
+  dispose: () => void;
 };
 
 let _peer: Peer | undefined;
@@ -77,10 +79,11 @@ const createSelfMediaStream = async () => {
       audio: true,
       video: true,
     });
+    return _selfMediaStream;
   } catch (e) {
-    alert("cant find audio video device to call with");
+    alert("cant find audio video device");
+    return;
   }
-  return _selfMediaStream;
 };
 
 export const getSelfMediaStream = () => {
@@ -104,14 +107,17 @@ export const getPeerMediaStream = () => {
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     ...getInitState(),
-
+    dispose: () => {
+      get().endCall();
+      set(getInitState());
+    },
     setSelfId: (e) => set({ selfId: e.target.value }),
     setPeerId: (e) => set({ peerId: e.target.value }),
     setMsg: (e) => set({ msg: e.target.value }),
     publishToBroker: async () => {
       const { selfId } = get();
       if (!selfId) {
-        throw new Error("cant init self without id");
+        return;
       }
 
       set({ status: "connecting-self" });
@@ -119,15 +125,21 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const PeerJs = await getPeerJs();
       _peer = new PeerJs(selfId);
 
+      _peer.on("disconnected", get().dispose);
+      _peer.on("close", get().dispose);
+      _peer.on("error", get().dispose);
       _peer.on("open", () => {
         set({ status: "awaiting-peer" });
       });
-      _peer.on("error", (e) => {
-        alert(e.cause);
-        set(getInitState());
-      });
       _peer.on("connection", (c) => {
         _dataCon = c;
+        _dataCon.on("close", get().dispose);
+        _dataCon.on("error", get().dispose);
+        _dataCon.on("iceStateChanged", (s) => {
+          if (s === "closed" || s === "disconnected" || s === "failed") {
+            get().dispose();
+          }
+        });
         _dataCon.on("data", (data) => {
           get().receive(data as any);
         });
@@ -139,40 +151,42 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           throw new Error("cant connect to peer without id");
         }
 
+        _peerMediaCon = call;
+        _peerMediaCon.on("error", get().endCall);
+        _peerMediaCon.on("close", get().endCall);
+        _peerMediaCon.on("iceStateChanged", (s) => {
+          if (s === "closed" || s === "disconnected" || s === "failed") {
+            get().endCall();
+            set({ status: "awaiting-peer", peerId: "" });
+          }
+        });
+
+        _peerMediaCon.on("stream", (peerMediaStream) => {
+          _peerMediaStream = peerMediaStream;
+          set({ status: "call-connected" });
+        });
+
         const willAnswer = confirm(`answer call from ${peerId}?`);
 
         if (!willAnswer) {
-          call.close();
+          get().endCall();
           return;
         }
 
         createSelfMediaStream().then((selfStream) => {
           if (!selfStream) {
-            call.close();
+            get().endCall();
             return;
           }
 
           call.answer(selfStream);
-
-          call.on("error", (e) => {
-            alert(e.cause);
-            set({ status: "connected" });
-          });
-          call.on("close", () => {
-            alert("call ended");
-            set({ status: "connected" });
-          });
-          call.on("stream", (peerMediaStream) => {
-            _peerMediaStream = peerMediaStream;
-            set({ status: "call-connected" });
-          });
         });
       });
     },
     connectPeer: () => {
       const { peerId } = get();
       if (!peerId) {
-        throw new Error("cant connect to peer without id");
+        return;
       }
 
       set({ status: "connecting-peer" });
@@ -189,6 +203,12 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _dataCon.on("data", (data) => {
         get().receive(data as any);
       });
+      _dataCon.on("iceStateChanged", (s) => {
+        if (s === "closed" || s === "disconnected" || s === "failed") {
+          get().endCall();
+          set({ status: "awaiting-peer", peerId: "" });
+        }
+      });
     },
     callPeer: () => {
       const { peerId } = get();
@@ -200,19 +220,19 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
       createSelfMediaStream().then((selfStream) => {
         if (!selfStream) {
+          get().endCall();
           return;
         }
 
         _peerMediaCon = getPeer().call(peerId, selfStream);
+        _peerMediaCon.on("error", get().endCall);
+        _peerMediaCon.on("close", get().endCall);
+        _peerMediaCon.on("iceStateChanged", (s) => {
+          if (s === "closed" || s === "disconnected" || s === "failed") {
+            get().endCall();
+          }
+        });
 
-        _peerMediaCon.on("error", (e) => {
-          alert(e.cause);
-          set({ status: "connected" });
-        });
-        _peerMediaCon.on("close", () => {
-          alert("call ended");
-          set({ status: "connected" });
-        });
         _peerMediaCon.on("stream", (peerMediaStream) => {
           _peerMediaStream = peerMediaStream;
           set({ status: "call-connected" });
@@ -236,6 +256,12 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set((p) => ({
         msgs: [...p.msgs, e],
       }));
+    },
+    endCall: () => {
+      _selfMediaStream?.getTracks().forEach((t) => t.stop());
+      _peerMediaStream?.getTracks().forEach((t) => t.stop());
+      _peerMediaCon?.close();
+      set({ status: "connected" });
     },
   })
 );

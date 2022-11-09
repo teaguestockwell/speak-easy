@@ -112,10 +112,10 @@ export const ConnectionView = (): JSX.Element => {
             }}
           />
           <div className={cn.row}>
-            <button className={cn.but} onClick={connectionActions.emit}>
+            <button onClick={connectionActions.emit}>
               send
             </button>
-            <button className={cn.but} onClick={connectionActions.callPeer}>
+            <button onClick={connectionActions.callPeer}>
               call
             </button>
           </div>
@@ -151,6 +151,7 @@ export const ConnectionView = (): JSX.Element => {
           };
           return (
             <div className={cn.call} style={{ flexDirection }}>
+              <button onClick={connectionActions.endCall}>end call</button>
               <video ref={selfVideo} style={vidStyle} muted />
               <video ref={peerVideo} style={vidStyle} />
             </div>
