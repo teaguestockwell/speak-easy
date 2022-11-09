@@ -105,6 +105,12 @@ export const getPeerMediaStream = () => {
   return _peerMediaStream;
 };
 
+const disposeVideo = () => {
+  _selfMediaStream?.getTracks().forEach((t) => t.stop());
+  _peerMediaStream?.getTracks().forEach((t) => t.stop());
+  _peerMediaCon?.close();
+};
+
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     ...getInitState(),
@@ -113,9 +119,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set(getInitState());
     },
     backToPeerSelection: () => {
-      _selfMediaStream?.getTracks().forEach((t) => t.stop());
-      _peerMediaStream?.getTracks().forEach((t) => t.stop());
-      _peerMediaCon?.close();
+      disposeVideo();
       _dataCon?.close();
       set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
     },
@@ -260,7 +264,9 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
     receive: (e) => {
       if (typeof e === "number") {
         if (e === 0) {
-          get().endCall();
+          disposeVideo();
+          set({ status: "connected" });
+          return
         }
       }
 
@@ -269,9 +275,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       }));
     },
     endCall: () => {
-      _selfMediaStream?.getTracks().forEach((t) => t.stop());
-      _peerMediaStream?.getTracks().forEach((t) => t.stop());
-      _peerMediaCon?.close();
+      disposeVideo();
       _dataCon?.send(0);
       set({ status: "connected" });
     },
