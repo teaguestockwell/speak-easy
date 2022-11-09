@@ -1,4 +1,5 @@
 import { Button } from "../../components";
+import { Icon } from "../../components/icon";
 import cn from "./bottom-nav.module.css";
 import { connectionActions, connectionStore } from "./connection-store";
 
@@ -56,20 +57,23 @@ export const BottomNav = (): JSX.Element | null => {
   if (s.status === "connected") {
     return (
       <div className={cn.root}>
-        <textarea
-          value={s.msg}
-          onChange={connectionActions.setMsg}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              connectionActions.emit();
-              e.preventDefault();
-            }
-          }}
-        />
         <div className={cn.row}>
-          <Button className={cn.but} onClick={connectionActions.emit}>
-            send
-          </Button>
+          <textarea
+            className={cn.ta}
+            value={s.msg}
+            onChange={connectionActions.setMsg}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                connectionActions.emit();
+                e.preventDefault();
+              }
+            }}
+          />
+          <Icon
+            sx={{ marginBottom: 4 }}
+            name="comment"
+            onClick={connectionActions.emit}
+          />
         </div>
       </div>
     );

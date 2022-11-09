@@ -18,13 +18,14 @@ type IconProps = {
   color?: string;
   bgColor?: string;
   onClick?: () => unknown;
+  sx?: React.CSSProperties
 };
 
 export const Icon = React.forwardRef<
   SVGSVGElement | HTMLButtonElement,
   IconProps
 >((p, ref) => {
-  const { size = 32, name, color = "var(--fc-0)", bgColor = "none" } = p;
+  const { size = 32, name, color = "var(--fc-0)", bgColor = "none", sx } = p;
 
   const i = (
     <svg
@@ -64,6 +65,7 @@ export const Icon = React.forwardRef<
         justifyContent: "center",
         alignItems: "center",
         backgroundColor: bgColor,
+        ...sx
       }}
       ref={ref as any}
       onClick={p.onClick}
