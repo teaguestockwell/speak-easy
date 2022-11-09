@@ -1,5 +1,6 @@
 .root {
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: var(--pad);
   border-top: var(--border);

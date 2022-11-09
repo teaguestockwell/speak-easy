@@ -1,11 +1,10 @@
 import React from "react";
-import { ChatBubble, Button } from "../../components";
+import { ChatBubble } from "../../components";
 import { WithMainAxisFlexDir } from "../../hooks";
 import {
   connectionStore,
   getSelfMediaStream,
   getPeerMediaStream,
-  connectionActions,
 } from "./connection-store";
 import cn from "./content.module.css";
 
@@ -62,11 +61,11 @@ export const Content = (): JSX.Element | null => {
       <WithMainAxisFlexDir>
         {(flexDirection) => {
           const vidStyle: React.CSSProperties = {
-            width: flexDirection === "row" ? "46%" : undefined,
-            height: flexDirection === "column" ? "46%" : undefined,
+            width: flexDirection === "row" ? "45%" : undefined,
+            height: flexDirection === "column" ? "45%" : undefined,
             flex: "1",
             objectFit: "cover",
-            borderRadius: "var(--rad)"
+            borderRadius: "var(--rad)",
           };
           return (
             <div className={cn.call} style={{ flexDirection }}>

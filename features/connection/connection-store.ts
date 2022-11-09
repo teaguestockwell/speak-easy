@@ -145,7 +145,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         _dataCon.on("close", get().backToPeerSelection);
         _dataCon.on("error", get().backToPeerSelection);
         _dataCon.on("iceStateChanged", (s) => {
-          if (s === "closed" || s === "disconnected" || s === "failed") {
+          if (s === "closed" || s === "failed") {
             get().backToPeerSelection();
           }
         });
@@ -164,7 +164,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         _peerMediaCon.on("error", get().endCall);
         _peerMediaCon.on("close", get().endCall);
         _peerMediaCon.on("iceStateChanged", (s) => {
-          if (s === "closed" || s === "disconnected" || s === "failed") {
+          if (s === "closed" || s === "failed") {
             get().endCall();
           }
         });
@@ -210,7 +210,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         get().receive(data as any);
       });
       _dataCon.on("iceStateChanged", (s) => {
-        if (s === "closed" || s === "disconnected" || s === "failed") {
+        if (s === "closed" || s === "failed") {
           get().backToPeerSelection();
         }
       });
@@ -233,7 +233,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         _peerMediaCon.on("error", get().endCall);
         _peerMediaCon.on("close", get().endCall);
         _peerMediaCon.on("iceStateChanged", (s) => {
-          if (s === "closed" || s === "disconnected" || s === "failed") {
+          if (s === "closed" || s === "failed") {
             get().endCall();
           }
         });
