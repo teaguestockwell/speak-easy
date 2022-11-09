@@ -5,8 +5,8 @@ export default function Index() {
   return (
     <>
       <main>
-        <Nav />
-        <ConnectionView />
+          <Nav />
+          <ConnectionView />
       </main>
     </>
   );

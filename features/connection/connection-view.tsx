@@ -6,9 +6,14 @@ import {
   getSelfMediaStream,
   getPeerMediaStream,
 } from "./connection-store";
+import { WithMainAxisFlexDir } from "../../hooks/use-main-axis-flex-dir";
 
 export const Nav = () => {
   const s = connectionStore((s) => s);
+
+  if (s.status === "call-connected") {
+    return null;
+  }
 
   return (
     <div className={cn.topNavRoot}>
@@ -41,11 +46,7 @@ export const ConnectionView = (): JSX.Element => {
       <div className={cn.bottomNavRoot}>
         <div className={cn.col}>
           <label>enter your id</label>
-          <input
-            className={cn.t}
-            value={s.selfId}
-            onChange={connectionActions.setSelfId}
-          />
+          <input value={s.selfId} onChange={connectionActions.setSelfId} />
         </div>
         <button onClick={connectionActions.publishToBroker}>next</button>
       </div>
@@ -83,9 +84,13 @@ export const ConnectionView = (): JSX.Element => {
       <>
         <div className={cn.bottomNavRoot}>
           <textarea
-            className={cn.text}
             value={s.msg}
             onChange={connectionActions.setMsg}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                connectionActions.emit();
+              }
+            }}
           />
           <button onClick={connectionActions.emit}>send</button>
           <button onClick={connectionActions.callPeer}>call</button>
@@ -118,12 +123,22 @@ export const ConnectionView = (): JSX.Element => {
 
   if (s.status === "call-connected") {
     return (
-      <>
-        <div className={cn.msgsRootCall}>
-          <video ref={selfVideo} className={cn.selfVid} muted />
-          <video ref={peerVideo} className={cn.peerVid} />
-        </div>
-      </>
+      <WithMainAxisFlexDir>
+        {(flexDirection) => {
+          const vidStyle: React.CSSProperties = {
+            width: flexDirection === "row" ? "48%" : undefined,
+            height: flexDirection === "column" ? "48%" : undefined,
+            flex: "1",
+            objectFit: "cover",
+          };
+          return (
+            <div className={cn.call} style={{ flexDirection }}>
+              <video ref={selfVideo} style={vidStyle} muted />
+              <video ref={peerVideo} style={vidStyle} />
+            </div>
+          );
+        }}
+      </WithMainAxisFlexDir>
     );
   }
 
