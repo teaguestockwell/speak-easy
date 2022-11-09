@@ -59,7 +59,7 @@ pre {
 
 button {
   min-width: 60px;
-  max-height: 100px;
+  max-height: 40px;
   cursor: pointer;
   background-color: var(--fc-0);
   color: var(--bgc-0);
