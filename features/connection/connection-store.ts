@@ -119,8 +119,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _dataCon?.close();
       set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
     },
-    setSelfId: (e) => set({ selfId: e.target.value }),
-    setPeerId: (e) => set({ peerId: e.target.value }),
+    setSelfId: (e) => set({ selfId: e.target.value.toLowerCase() }),
+    setPeerId: (e) => set({ peerId: e.target.value.toLowerCase() }),
     setMsg: (e) => set({ msg: e.target.value }),
     publishToBroker: async () => {
       const { selfId } = get();
