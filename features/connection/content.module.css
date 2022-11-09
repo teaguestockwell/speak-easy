@@ -1,9 +1,11 @@
+.flex {
+  display: flex;
+  flex-grow: 99999;
+}
+
 .msg {
-  position: absolute;
-  top: 66px;
-  left: 0;
-  right: 0;
-  bottom: 111px;
+  display: flex;
+  flex-grow: 99999;
   overflow-y: auto;
   display: flex;
   flex-direction: column;

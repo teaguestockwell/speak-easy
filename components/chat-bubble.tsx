@@ -11,7 +11,7 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
   (p, ref) => {
     const time = new Date(p.createdAt).toLocaleTimeString();
     const style = {
-      alignSelf: p.variant === "theirs" ? "flex-end" : "flex-start",
+      alignSelf: p.variant === "theirs" ? "flex-start" : "flex-end",
     };
     return (
       <div ref={ref} className={cn.root} style={style}>

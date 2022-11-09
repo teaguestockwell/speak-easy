@@ -26,17 +26,19 @@ export const Content = (): JSX.Element | null => {
     }
   });
 
+  const flex = <div className={cn.flex}/>
+
   if (s.status === "enter-self-id") {
-    return null;
+    return flex
   }
   if (s.status === "connecting-self") {
-    return null;
+    return flex;
   }
   if (s.status == "awaiting-peer") {
-    return null;
+    return flex;
   }
   if (s.status === "connecting-peer") {
-    return null;
+    return flex;
   }
   if (s.status === "connected") {
     return (
@@ -53,7 +55,7 @@ export const Content = (): JSX.Element | null => {
     );
   }
   if (s.status === "calling-peer") {
-    return null;
+    return flex;
   }
   if (s.status === "call-connected") {
     return (

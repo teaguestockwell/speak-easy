@@ -7,7 +7,6 @@ export const TopNav = (): JSX.Element | null => {
   const nav = (
     <div className={cn.root}>
       <span>{"my id: " + s.selfId}</span>
-      <span>{"peer id: " + s.peerId}</span>
     </div>
   );
 
@@ -24,7 +23,11 @@ export const TopNav = (): JSX.Element | null => {
     return null;
   }
   if (s.status === "connected") {
-    return nav;
+    return (
+      <div className={cn.root}>
+        <span>{s.peerId}</span>
+      </div>
+    );
   }
   if (s.status === "calling-peer") {
     return null;
