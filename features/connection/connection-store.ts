@@ -139,7 +139,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _peer.on("open", () => {
         set({ status: "awaiting-peer" });
       });
-    
+
       _peer.on("connection", (c) => {
         _dataCon = c;
         _dataCon.on("close", get().backToPeerSelection);
@@ -258,6 +258,12 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       getDataConn().send(e);
     },
     receive: (e) => {
+      if (typeof e === "number") {
+        if (e === 0) {
+          get().endCall();
+        }
+      }
+
       set((p) => ({
         msgs: [...p.msgs, e],
       }));
@@ -266,6 +272,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _selfMediaStream?.getTracks().forEach((t) => t.stop());
       _peerMediaStream?.getTracks().forEach((t) => t.stop());
       _peerMediaCon?.close();
+      _dataCon?.send(0);
       set({ status: "connected" });
     },
   })
