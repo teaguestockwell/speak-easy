@@ -1,0 +1,22 @@
+.msg {
+  position: absolute;
+  top: 66px;
+  left: 0;
+  right: 0;
+  bottom: 111px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--pad);
+  padding: var(--pad);
+}
+
+.call {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: var(--pad);
+  padding: var(--pad);
+}

@@ -1,13 +1,6 @@
 import React from "react";
-import { ConnectionView, Nav } from "../features/connection/connection-view";
+import { Connection } from "../features/connection";
 
-export default function Index() {
-  return (
-    <>
-      <main>
-          <Nav />
-          <ConnectionView />
-      </main>
-    </>
-  );
+export default function Page() {
+  return <Connection />;
 }

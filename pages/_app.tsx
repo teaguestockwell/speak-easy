@@ -1,12 +1,12 @@
-import { ThemeProvider } from "next-themes";
 import "../global.css";
+import { ThemeProvider } from "next-themes";
 
-const App = ({ Component, pageProps }: any) => {
+export default function App({ Component, pageProps }: any) {
   return (
-    <ThemeProvider>
-      <Component {...pageProps} />
-    </ThemeProvider>
+    <main>
+      <ThemeProvider>
+        <Component {...pageProps} />
+      </ThemeProvider>
+    </main>
   );
-};
-
-export default App;
+}
