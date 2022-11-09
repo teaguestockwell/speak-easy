@@ -157,7 +157,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         _peerMediaCon.on("iceStateChanged", (s) => {
           if (s === "closed" || s === "disconnected" || s === "failed") {
             get().endCall();
-            set({ status: "awaiting-peer", peerId: "" });
           }
         });
 
