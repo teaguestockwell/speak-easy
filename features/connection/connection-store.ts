@@ -26,7 +26,7 @@ export type ConnectionState = {
 };
 
 const getInitState = (): ConnectionState => ({
-  selfId: humanid("-").toLowerCase(),
+  selfId: humanid(" ").toLowerCase(),
   peerId: "",
   msg: "",
   msgs: [],
@@ -136,6 +136,17 @@ const onPeerType = deb(() => {
   connectionStore.setState({ isPeerTyping: false });
 }, 5000);
 
+const omitted = new Set("1234567890-=[];'\\,./`!@#$%^&*()_+|\":?><~".split(""));
+
+const cleanId = (s: string) => {
+  return s
+    .toLowerCase()
+    .split("")
+    .map((c) => (omitted.has(c) ? "" : c))
+    .join("")
+    .replace(/\s+/g, " ");
+};
+
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     ...getInitState(),
@@ -149,14 +160,15 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _dataCon?.close();
       set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
     },
-    setSelfId: (e) => set({ selfId: e.target.value.toLowerCase() }),
-    setPeerId: (e) => set({ peerId: e.target.value.toLowerCase() }),
+    setSelfId: (e) => set({ selfId: cleanId(e.target.value) }),
+    setPeerId: (e) => set({ peerId: cleanId(e.target.value) }),
     setMsg: (e) => {
       set({ msg: e.target.value });
       _dataCon?.send(1);
     },
     publishToBroker: async () => {
-      const { selfId } = get();
+      const selfId = get().selfId.trim();
+      set({ selfId });
       if (!selfId) {
         return;
       }
@@ -235,7 +247,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       });
     },
     connectPeer: () => {
-      const { peerId } = get();
+      const peerId = get().peerId.trim();
+      set({ peerId });
       if (!peerId) {
         return;
       }
