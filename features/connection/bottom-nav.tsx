@@ -10,8 +10,9 @@ export const BottomNav = (): JSX.Element | null => {
     return (
       <div className={cn.root}>
         <div className={cn.col}>
-          <label>enter your id</label>
+          <label htmlFor="your id">your id</label>
           <input
+            id="your id"
             value={s.selfId}
             onChange={connectionActions.setSelfId}
             onKeyDown={(e) => {
@@ -37,8 +38,9 @@ export const BottomNav = (): JSX.Element | null => {
   if (s.status == "awaiting-peer") {
     return (
       <div className={cn.root}>
-        <label>enter peer id</label>
+        <label htmlFor="peer id">peer id</label>
         <input
+          id="peer id"
           value={s.peerId}
           onChange={connectionActions.setPeerId}
           onKeyDown={(e) => {
@@ -67,6 +69,7 @@ export const BottomNav = (): JSX.Element | null => {
         )}
         <div className={cn.row}>
           <textarea
+            aria-label="message peer"
             className={cn.ta}
             value={s.msg}
             onChange={connectionActions.setMsg}

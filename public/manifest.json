@@ -1,0 +1,25 @@
+{
+  "theme_color": "#000",
+  "background_color": "#000",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "name": "Speak Easy",
+  "short_name": "Speak Easy",
+  "description": "Peer to peer chat",
+  "orientation": "portrait-primay",
+  "icons": [
+    {
+      "src": "/favorite-icons/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favorite-icons/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
