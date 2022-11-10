@@ -16,8 +16,9 @@
 }
 
 .call {
+  position: absolute;
+  inset: 58px 0 0 0;
   display: flex;
-  flex-grow: 99999;
   gap: var(--pad);
   padding: var(--pad);
 }
