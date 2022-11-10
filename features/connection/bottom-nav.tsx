@@ -22,7 +22,10 @@ export const BottomNav = (): JSX.Element | null => {
             }}
           />
         </div>
-        <Button className={cn.but} onClick={connectionActions.publishToBroker}>
+        <Button
+          className={cn.but}
+          onClick={() => connectionActions.publishToBroker()}
+        >
           next
         </Button>
       </div>

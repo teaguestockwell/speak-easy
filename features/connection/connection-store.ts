@@ -38,7 +38,7 @@ export type ConnectionActions = {
   setSelfId: (e: { target: { value: string } }) => void;
   setPeerId: (e: { target: { value: string } }) => void;
   setMsg: (e: { target: { value: string } }) => void;
-  publishToBroker: () => Promise<void>;
+  publishToBroker: (onOpen?: () => unknown) => Promise<void>;
   connectPeer: () => void;
   emit: () => void;
   receive: (e: MsgEvent) => void;
@@ -46,6 +46,7 @@ export type ConnectionActions = {
   endCall: () => void;
   dispose: () => void;
   backToPeerSelection: () => void;
+  autoConnectToPeer: (peerIs: string) => void;
 };
 
 let _peer: Peer | undefined;
@@ -150,6 +151,16 @@ const cleanId = (s: string) => {
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     ...getInitState(),
+    autoConnectToPeer: (peerId) => {
+      set({
+        ...getInitState(),
+        peerId,
+      });
+
+      get().publishToBroker(() => {
+        get().connectPeer();
+      });
+    },
     dispose: () => {
       get().endCall();
       set(getInitState());
@@ -166,7 +177,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set({ msg: e.target.value });
       _dataCon?.send(1);
     },
-    publishToBroker: async () => {
+    publishToBroker: async (onOpen) => {
       const selfId = get().selfId.trim();
       set({ selfId });
       if (!selfId) {
@@ -192,6 +203,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _peer.on("error", get().backToPeerSelection);
       _peer.on("open", () => {
         set({ status: "awaiting-peer" });
+        onOpen?.();
       });
 
       _peer.on("connection", (c) => {

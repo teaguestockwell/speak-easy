@@ -30,3 +30,9 @@
   justify-content: flex-end;
   gap: calc(var(--pad) * 2);
 }
+
+.centerRow {
+  display: flex;
+  gap: var(--pad);
+  align-items: center;
+}
