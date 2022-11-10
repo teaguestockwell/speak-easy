@@ -192,6 +192,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const callEnder = () => {
         if (document.visibilityState === "hidden") {
           get().endCall();
+          get().backToPeerSelection();
         }
       };
 
