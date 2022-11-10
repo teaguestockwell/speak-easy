@@ -114,6 +114,24 @@ const disposeVideo = () => {
   _peerMediaCon?.close();
 };
 
+const disposeSession = () => {
+  disposeVideo();
+  connectionStore.getState().backToPeerSelection();
+};
+
+const onPing = deb(disposeSession, 5000);
+
+let stopPing: undefined | (() => void);
+const startPinging = () => {
+  stopPing?.();
+  const i = setInterval(() => {
+    _dataCon?.send(2);
+  }, 3000);
+  stopPing = () => {
+    clearInterval(i);
+  };
+};
+
 const onPeerType = deb(() => {
   connectionStore.setState({ isPeerTyping: false });
 }, 5000);
@@ -126,6 +144,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set(getInitState());
     },
     backToPeerSelection: () => {
+      stopPing?.();
       disposeVideo();
       _dataCon?.close();
       set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
@@ -147,6 +166,15 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const PeerJs = await getPeerJs();
       _peer = new PeerJs(selfId);
 
+      const callEnder = () => {
+        if (document.visibilityState === "hidden") {
+          get().endCall();
+        }
+      };
+
+      window.addEventListener("visibilitychange", callEnder);
+      window.addEventListener("pagehide", callEnder);
+
       _peer.on("disconnected", get().backToPeerSelection);
       _peer.on("close", get().backToPeerSelection);
       _peer.on("error", get().backToPeerSelection);
@@ -155,6 +183,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       });
 
       _peer.on("connection", (c) => {
+        startPinging();
         _dataCon = c;
         _dataCon.on("close", get().backToPeerSelection);
         _dataCon.on("error", get().backToPeerSelection);
@@ -216,6 +245,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _dataCon = getPeer().connect(peerId);
 
       _dataCon.on("open", () => {
+        startPinging();
         set({ status: "connected" });
       });
       _dataCon.on("error", get().backToPeerSelection);
@@ -281,6 +311,10 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         if (e === 1) {
           connectionStore.setState({ isPeerTyping: true });
           onPeerType();
+          return;
+        }
+        if (e === 2) {
+          onPing();
           return;
         }
       }
