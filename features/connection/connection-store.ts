@@ -2,6 +2,7 @@ import create from "zustand";
 import type { Peer, DataConnection, MediaConnection } from "peerjs";
 import humanid from "human-id";
 import deb from "lodash/debounce";
+import { chunkFile } from "./chunk-file";
 import pb from "pretty-bytes";
 
 export type MsgEvent = {
@@ -10,10 +11,17 @@ export type MsgEvent = {
   msg: string;
   fileKey?: string;
   fileName?: string;
-  fileBuffer?: ArrayBuffer;
+  bytes?: ArrayBuffer;
+  totalBytes?: number;
 };
 
-const fileStore: { [k: string]: MsgEvent } = {};
+const blobs: {
+  [k: string]: {
+    meta: MsgEvent;
+    chunks: ArrayBuffer[];
+    getTotalChunksSize: () => number;
+  };
+} = {};
 
 export type ConnectionState = {
   selfId: string;
@@ -29,6 +37,7 @@ export type ConnectionState = {
     | "calling-peer"
     | "call-connected";
   isPeerTyping: boolean;
+  prog: { [fileKey: string]: { msg: string; isDone: boolean } };
 };
 
 const getInitState = (): ConnectionState => ({
@@ -38,6 +47,7 @@ const getInitState = (): ConnectionState => ({
   msgs: [],
   status: "enter-self-id",
   isPeerTyping: false,
+  prog: {},
 });
 
 export type ConnectionActions = {
@@ -338,36 +348,64 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
     sendFile: (f: File) => {
       f.arrayBuffer().then((ab) => {
         const now = Date.now();
-        const e: MsgEvent = {
-          senderId: get().selfId,
-          createdAt: now,
-          msg: `${f.name} ${pb(f.size)}`,
-          fileKey: now + "",
-          fileName: f.name,
-          fileBuffer: ab,
+        const senderId = get().selfId;
+        const msg = f.name;
+        const fileKey = senderId + now;
+        const chunks: ArrayBuffer[] = [];
+        const getTotalChunksSize = () => {
+          return chunks.reduce((acc, cur) => acc + cur.byteLength, 0);
         };
 
-        if (_dataCon) {
-          _dataCon.send(e);
-          fileStore[e.fileKey!] = e;
-          const { fileBuffer, ...rest } = e;
+        blobs[fileKey] = {
+          chunks,
+          getTotalChunksSize,
+          meta: {
+            senderId,
+            fileKey,
+            msg,
+            createdAt: now,
+            fileName: f.name,
+            totalBytes: ab.byteLength,
+          },
+        };
+
+        set((p) => ({
+          msgs: [...p.msgs, blobs[fileKey].meta],
+        }));
+
+        chunkFile(f, (bytes, isDone) => {
+          if (!_dataCon) return;
+          _dataCon.send({ ...blobs[fileKey].meta, bytes });
+          chunks.push(bytes);
           set((p) => ({
-            msgs: [...p.msgs, rest],
+            prog: {
+              ...p.prog,
+              [fileKey]: {
+                msg: `${pb(getTotalChunksSize())} / ${pb(f.size)}`,
+                isDone,
+              },
+            },
           }));
-        }
+        });
       });
     },
     downloadFile: (k: string) => {
-      const { fileBuffer, fileName } = fileStore[k];
-      if (!fileBuffer || !fileName) {
+      const { meta, chunks, getTotalChunksSize } = blobs[k];
+      if (!meta.fileName) {
         alert("file not found");
         return;
       }
-      const url = window.URL.createObjectURL(new Blob([fileBuffer]));
+
+      if (getTotalChunksSize() !== meta.totalBytes) {
+        alert("file still downloading");
+        return;
+      }
+
+      const url = window.URL.createObjectURL(new Blob(chunks));
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;
-      a.download = fileName;
+      a.download = meta.fileName;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -390,11 +428,46 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         }
       }
 
-      if (e.fileKey) {
-        fileStore[e.fileKey] = e;
+      if (e.fileKey && e.bytes) {
+        // first chunk
+        if (!blobs[e.fileKey]) {
+          const { bytes, ...rest } = e;
+          const meta = rest;
+          const chunks: ArrayBuffer[] = [bytes];
+          const getTotalChunksSize = () => {
+            return chunks.reduce((acc, cur) => acc + cur.byteLength, 0);
+          };
+
+          blobs[e.fileKey] = {
+            meta,
+            chunks,
+            getTotalChunksSize,
+          };
+
+          set((p) => ({
+            msgs: [...p.msgs, blobs[e.fileKey!].meta],
+          }));
+
+          return;
+        }
+
+        // next chunk
+        blobs[e.fileKey].chunks.push(e.bytes);
+        const prog = blobs[e.fileKey!]!.getTotalChunksSize();
+        set((p) => ({
+          prog: {
+            ...p.prog,
+            [e.fileKey!]: {
+              msg: `${pb(prog)} / ${pb(e.totalBytes ?? 0)}`,
+              isDone: prog === e.totalBytes,
+            },
+          },
+        }));
+
+        return;
       }
 
-      const { fileBuffer, ...rest } = e;
+      const { bytes, ...rest } = e;
       set((p) => ({
         msgs: [...p.msgs, rest],
       }));

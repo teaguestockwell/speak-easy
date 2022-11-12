@@ -6,11 +6,30 @@ import {
   getSelfMediaStream,
   getPeerMediaStream,
   connectionActions,
+  MsgEvent,
 } from "./connection-store";
 import cn from "./content.module.css";
 
+const ConnectedChatBubble = (p: MsgEvent) => {
+  const { selfId } = connectionStore.getState();
+  const prog = connectionStore((s) => s.prog[p.fileKey ?? ""]);
+
+  return (
+    <ChatBubble
+      key={p.createdAt + p.senderId}
+      variant={selfId === p.senderId ? "mine" : "theirs"}
+      msg={prog ? p.msg + " " + prog.msg : p.msg}
+      createdAt={p.createdAt}
+      downloadFile={
+        prog?.isDone
+          ? () => connectionActions.downloadFile(p.fileKey!)
+          : undefined
+      }
+    />
+  );
+};
+
 export const Content = (): JSX.Element | null => {
-  const selfId = connectionStore((s) => s.selfId);
   const status = connectionStore((s) => s.status);
   const msgs = connectionStore((s) => s.msgs);
   const [selfVideo] = React.useState(React.createRef<HTMLVideoElement>());
@@ -42,17 +61,7 @@ export const Content = (): JSX.Element | null => {
     return (
       <div className={cn.msg}>
         {msgs.map((m) => (
-          <ChatBubble
-            key={m.createdAt + m.senderId}
-            variant={selfId === m.senderId ? "mine" : "theirs"}
-            msg={m.msg}
-            createdAt={m.createdAt}
-            downloadFile={
-              !m.fileKey
-                ? undefined
-                : () => connectionActions.downloadFile(m.fileKey!)
-            }
-          />
+          <ConnectedChatBubble key={m.createdAt + m.senderId} {...m} />
         ))}
       </div>
     );
