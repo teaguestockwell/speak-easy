@@ -448,6 +448,15 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
           set((p) => ({
             msgs: [...p.msgs, blobs[e.fileKey!].meta],
+            prog: {
+              ...p.prog,
+              [e.fileKey!]: {
+                msg: `${pb(e.bytes?.byteLength ?? 0)} / ${pb(
+                  e.totalBytes ?? 0
+                )}`,
+                isDone: e.bytes?.byteLength === e.totalBytes,
+              },
+            },
           }));
 
           return;

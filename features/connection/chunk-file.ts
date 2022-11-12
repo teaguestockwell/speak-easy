@@ -8,13 +8,13 @@ export const chunk = async <T extends { slice: (...args: any[]) => T }>(
   for (let i = 0; i < getLength(arr); i += chunkSize) {
     const nextChunk = arr.slice(i, i + chunkSize);
     onChunk(nextChunk, i + getLength(nextChunk) >= getLength(arr));
-    await new Promise(r => setTimeout(r, wait))
+    await new Promise((r) => setTimeout(r, wait));
   }
 };
 
 export const chunkFile = (
   file: File,
-  onChunkRead: (ab: ArrayBuffer, isLast: boolean) => unknown,
+  onChunkRead: (ab: ArrayBuffer, isLast: boolean) => unknown
 ) => {
   file.arrayBuffer().then((allBytes) => {
     // 10MB / second
