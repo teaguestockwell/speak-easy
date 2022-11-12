@@ -496,12 +496,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       }
 
       if (isFileEvent(ev)) {
-        const rpc: RPC = {
-          rpc: "acknowledge-chunk",
-          chunkIndexReceived: ev.chunkIndex,
-          fileKey: ev.fileKey,
+        const acknowledgeChunk = () => {
+          const rpc: RPC = {
+            rpc: "acknowledge-chunk",
+            chunkIndexReceived: ev.chunkIndex,
+            fileKey: ev.fileKey,
+          };
+          _dataCon?.send(rpc);
         };
-        _dataCon?.send(rpc);
 
         // first chunk
         if (!blobs[ev.fileKey]) {
@@ -531,6 +533,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
             },
           }));
 
+          acknowledgeChunk();
           return;
         }
 
@@ -547,6 +550,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           },
         }));
 
+        acknowledgeChunk();
         return;
       }
 
