@@ -11,7 +11,7 @@ type TextEvent = {
   msg: string;
 };
 
-type FileEvent = TextEvent & {
+export type FileEvent = TextEvent & {
   fileKey: string;
   fileName: string;
   chunk: ArrayBuffer;

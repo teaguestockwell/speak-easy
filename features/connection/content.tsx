@@ -7,12 +7,13 @@ import {
   getPeerMediaStream,
   connectionActions,
   MsgEvent,
+  FileEvent,
 } from "./connection-store";
 import cn from "./content.module.css";
 
 const ConnectedChatBubble = (p: MsgEvent) => {
   const { selfId } = connectionStore.getState();
-  const prog = connectionStore((s) => s.prog[p.fileKey ?? ""]);
+  const prog = connectionStore((s) => s.prog[(p as FileEvent).fileKey ?? ""]);
 
   return (
     <ChatBubble
@@ -22,7 +23,7 @@ const ConnectedChatBubble = (p: MsgEvent) => {
       createdAt={p.createdAt}
       downloadFile={
         prog?.isDone
-          ? () => connectionActions.downloadFile(p.fileKey!)
+          ? () => connectionActions.downloadFile((p as FileEvent).fileKey!)
           : undefined
       }
     />
