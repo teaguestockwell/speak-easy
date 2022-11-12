@@ -11,6 +11,8 @@
 }
 
 .msg {
+  overflow-wrap: break-word;
+  word-break: break-all;
   display: flex;
   white-space: pre-wrap;
   color: var(--fc-1);
@@ -23,7 +25,8 @@
 }
 
 .button {
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: break-all;
   min-height: 40px;
   background-color: var(--fc-0);
   color: var(--bgc-0);
