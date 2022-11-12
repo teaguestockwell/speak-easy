@@ -1,10 +1,12 @@
 import React from "react";
+import { Button } from "./button";
 import cn from "./chat-bubble.module.css";
 
 export type ChatBubbleProps = {
   variant: "mine" | "theirs";
   createdAt: number;
   msg: string;
+  downloadFile?: () => unknown;
 };
 
 const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
@@ -15,7 +17,8 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
     };
     return (
       <div ref={ref} className={cn.root} style={style}>
-        <span className={cn.msg}>{p.msg}</span>
+        {!p.downloadFile && <span className={cn.msg}>{p.msg}</span>}
+        {p.downloadFile && <Button onClick={p.downloadFile}>{p.msg}</Button>}
         <span className={cn.time}>{time}</span>
       </div>
     );

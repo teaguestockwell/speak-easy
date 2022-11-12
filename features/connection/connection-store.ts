@@ -2,12 +2,18 @@ import create from "zustand";
 import type { Peer, DataConnection, MediaConnection } from "peerjs";
 import humanid from "human-id";
 import deb from "lodash/debounce";
+import pb from "pretty-bytes";
 
 export type MsgEvent = {
   senderId: string;
   createdAt: number;
   msg: string;
+  fileKey?: string;
+  fileName?: string;
+  fileBuffer?: ArrayBuffer;
 };
+
+const fileStore: { [k: string]: MsgEvent } = {};
 
 export type ConnectionState = {
   selfId: string;
@@ -47,6 +53,8 @@ export type ConnectionActions = {
   dispose: () => void;
   backToPeerSelection: () => void;
   autoConnectToPeer: (peerIs: string) => void;
+  sendFile: (f: File) => void;
+  downloadFile: (k: string) => void;
 };
 
 let _peer: Peer | undefined;
@@ -268,7 +276,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
       set({ status: "connecting-peer" });
 
-      _dataCon = getPeer().connect(peerId);
+      _dataCon = getPeer().connect(peerId, { reliable: true });
 
       _dataCon.on("open", () => {
         startPinging();
@@ -327,6 +335,43 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set((p) => ({ msg: "", msgs: [...p.msgs, e] }));
       getDataConn().send(e);
     },
+    sendFile: (f: File) => {
+      f.arrayBuffer().then((ab) => {
+        const now = Date.now();
+        const e: MsgEvent = {
+          senderId: get().selfId,
+          createdAt: now,
+          msg: `${f.name} ${pb(f.size)}`,
+          fileKey: now + "",
+          fileName: f.name,
+          fileBuffer: ab,
+        };
+
+        if (_dataCon) {
+          _dataCon.send(e);
+          fileStore[e.fileKey!] = e;
+          const { fileBuffer, ...rest } = e;
+          set((p) => ({
+            msgs: [...p.msgs, rest],
+          }));
+        }
+      });
+    },
+    downloadFile: (k: string) => {
+      const { fileBuffer, fileName } = fileStore[k];
+      if (!fileBuffer || !fileName) {
+        alert("file not found");
+        return;
+      }
+      const url = window.URL.createObjectURL(new Blob([fileBuffer]));
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
     receive: (e) => {
       if (typeof e === "number") {
         if (e === 0) {
@@ -345,8 +390,13 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         }
       }
 
+      if (e.fileKey) {
+        fileStore[e.fileKey] = e;
+      }
+
+      const { fileBuffer, ...rest } = e;
       set((p) => ({
-        msgs: [...p.msgs, e],
+        msgs: [...p.msgs, rest],
       }));
     },
     endCall: () => {

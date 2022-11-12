@@ -5,6 +5,7 @@ import {
   connectionStore,
   getSelfMediaStream,
   getPeerMediaStream,
+  connectionActions,
 } from "./connection-store";
 import cn from "./content.module.css";
 
@@ -46,6 +47,11 @@ export const Content = (): JSX.Element | null => {
             variant={selfId === m.senderId ? "mine" : "theirs"}
             msg={m.msg}
             createdAt={m.createdAt}
+            downloadFile={
+              !m.fileKey
+                ? undefined
+                : () => connectionActions.downloadFile(m.fileKey!)
+            }
           />
         ))}
       </div>

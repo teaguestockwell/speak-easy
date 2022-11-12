@@ -68,7 +68,9 @@ export const BottomNav = (): JSX.Element | null => {
           </div>
         )}
         <div className={cn.row}>
-          <Upload />
+          <Upload 
+            onFile={connectionActions.sendFile}
+          />
           <textarea
             aria-label="message peer"
             className={cn.ta}
