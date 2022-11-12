@@ -19,7 +19,7 @@ const ConnectedChatBubble = (p: MsgEvent) => {
     <ChatBubble
       key={p.createdAt + p.senderId}
       variant={selfId === p.senderId ? "mine" : "theirs"}
-      msg={prog ? p.msg + " " + prog.msg : p.msg}
+      msg={prog ? p.msg + "\n" + prog.msg : p.msg}
       createdAt={p.createdAt}
       downloadFile={
         prog?.isDone
