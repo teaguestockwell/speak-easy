@@ -18,5 +18,5 @@ export const chunkFile = async (
   onChunk?: (ab: ArrayBuffer, isLast: boolean) => unknown
 ) => {
   const allBytes = await file.arrayBuffer();
-  return chunk(allBytes, (ab) => ab.byteLength, 1024 * 16, onChunk);
+  return chunk(allBytes, (ab) => ab.byteLength, 1024 * 64, onChunk);
 };
