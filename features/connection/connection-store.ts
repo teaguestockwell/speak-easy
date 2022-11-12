@@ -5,19 +5,46 @@ import deb from "lodash/debounce";
 import { chunkFile } from "./chunk-file";
 import pb from "pretty-bytes";
 
-export type MsgEvent = {
+type TextEvent = {
   senderId: string;
   createdAt: number;
   msg: string;
-  fileKey?: string;
-  fileName?: string;
-  bytes?: ArrayBuffer;
-  totalBytes?: number;
 };
+
+type FileEvent = TextEvent & {
+  fileKey: string;
+  fileName: string;
+  chunk: ArrayBuffer;
+  chunkIndex: number;
+  totalBytes: number;
+};
+export type MsgEvent = FileEvent | TextEvent;
+
+type RPC =
+  | {
+      rpc: "acknowledge-chunk";
+      fileKey: string;
+      chunkIndexReceived: number;
+    }
+  | {
+      rpc: "on-peer-type";
+    }
+  | {
+      rpc: "start-ping";
+    }
+  | {
+      rpc: "end-call";
+    };
+
+const isRpc = (e: any): e is RPC => !!e && typeof e === "object" && "rpc" in e;
+const isFileEvent = (e: any): e is FileEvent =>
+  !!e && typeof e === "object" && "fileKey" in e;
+const isMsgEvent = (e: any): e is MsgEvent =>
+  !!e && typeof e === "object" && "msg" in e;
 
 const blobs: {
   [k: string]: {
-    meta: MsgEvent;
+    meta: Omit<FileEvent, "chunk">;
     chunks: ArrayBuffer[];
     getTotalChunksSize: () => number;
   };
@@ -57,13 +84,13 @@ export type ConnectionActions = {
   publishToBroker: (onOpen?: () => unknown) => Promise<void>;
   connectPeer: () => void;
   emit: () => void;
-  receive: (e: MsgEvent) => void;
+  receive: (e: any) => void;
   callPeer: () => void;
   endCall: () => void;
   dispose: () => void;
   backToPeerSelection: () => void;
   autoConnectToPeer: (peerIs: string) => void;
-  sendFile: (f: File) => void;
+  sendFile: (f: File) => Promise<void>;
   downloadFile: (k: string) => void;
 };
 
@@ -144,7 +171,8 @@ let stopPing: undefined | (() => void);
 const startPinging = () => {
   stopPing?.();
   const i = setInterval(() => {
-    _dataCon?.send(2);
+    const e: RPC = { rpc: "start-ping" };
+    _dataCon?.send(e);
   }, 3000);
   stopPing = () => {
     clearInterval(i);
@@ -193,7 +221,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
     setPeerId: (e) => set({ peerId: cleanId(e.target.value) }),
     setMsg: (e) => {
       set({ msg: e.target.value });
-      _dataCon?.send(1);
+      const ev: RPC = { rpc: "on-peer-type" };
+      _dataCon?.send(ev);
     },
     publishToBroker: async (onOpen) => {
       const selfId = get().selfId.trim();
@@ -347,49 +376,44 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set((p) => ({ msg: "", msgs: [...p.msgs, e] }));
       getDataConn().send(e);
     },
-    sendFile: (f: File) => {
-      f.arrayBuffer().then((ab) => {
-        const now = Date.now();
-        const senderId = get().selfId;
-        const msg = f.name;
-        const fileKey = senderId + now;
-        const chunks: ArrayBuffer[] = [];
-        const getTotalChunksSize = () => {
-          return chunks.reduce((acc, cur) => acc + cur.byteLength, 0);
-        };
+    sendFile: async (f: File) => {
+      const now = Date.now();
+      const senderId = get().selfId;
+      const msg = f.name;
+      const fileKey = senderId + now;
+      const chunks = await chunkFile(f);
+      const getTotalChunksSize = () => {
+        return chunks.reduce((acc, cur) => acc + cur.byteLength, 0);
+      };
+      blobs[fileKey] = {
+        chunks,
+        getTotalChunksSize,
+        meta: {
+          senderId,
+          fileKey,
+          msg,
+          createdAt: now,
+          fileName: f.name,
+          totalBytes: f.size,
+          chunkIndex: 0,
+        },
+      };
 
-        blobs[fileKey] = {
-          chunks,
-          getTotalChunksSize,
-          meta: {
-            senderId,
-            fileKey,
-            msg,
-            createdAt: now,
-            fileName: f.name,
-            totalBytes: ab.byteLength,
+      // only send the first chunk, then wait for the peer to acknowledge
+      // otherwise you may break the data connection
+      // because your peer is trying to drink water from a firehose
+      const e: FileEvent = { ...blobs[fileKey].meta, chunk: chunks[0] };
+      getDataConn().send(e);
+      set((p) => ({
+        msgs: [...p.msgs, blobs[fileKey].meta],
+        prog: {
+          ...p.prog,
+          [fileKey]: {
+            msg: `0 / ${pb(f.size)}`,
+            isDone: chunks[0].byteLength === f.size,
           },
-        };
-
-        set((p) => ({
-          msgs: [...p.msgs, blobs[fileKey].meta],
-        }));
-
-        chunkFile(f, (bytes, isDone) => {
-          if (!_dataCon) return;
-          _dataCon.send({ ...blobs[fileKey].meta, bytes });
-          chunks.push(bytes);
-          set((p) => ({
-            prog: {
-              ...p.prog,
-              [fileKey]: {
-                msg: `${pb(getTotalChunksSize())} / ${pb(f.size)}`,
-                isDone,
-              },
-            },
-          }));
-        });
-      });
+        },
+      }));
     },
     downloadFile: (k: string) => {
       const { meta, chunks, getTotalChunksSize } = blobs[k];
@@ -412,49 +436,97 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       a.click();
       window.URL.revokeObjectURL(url);
     },
-    receive: (e) => {
-      if (typeof e === "number") {
-        if (e === 0) {
-          disposeVideo();
-          set({ status: "connected" });
-          return;
-        }
-        if (e === 1) {
-          connectionStore.setState({ isPeerTyping: true });
-          onPeerType();
-          return;
-        }
-        if (e === 2) {
-          onPing();
-          return;
-        }
+    receive: (ev) => {
+      if (isRpc(ev)) {
+        const { rpc } = ev;
+        ((): void => {
+          if (rpc === "end-call") {
+            disposeVideo();
+            set({ status: "connected" });
+            return;
+          }
+          if (rpc === "on-peer-type") {
+            connectionStore.setState({ isPeerTyping: true });
+            onPeerType();
+            return;
+          }
+          if (rpc === "start-ping") {
+            onPing();
+            return;
+          }
+          if (rpc === "acknowledge-chunk") {
+            const b = blobs[ev.fileKey];
+            const chunkSize = b.chunks[0].byteLength;
+            if (!b || chunkSize === undefined) {
+              alert("missing chunks for file " + ev.fileKey);
+              return;
+            }
+            const nextChunkI = ev.chunkIndexReceived + 1;
+            const nextChunk = b.chunks[nextChunkI];
+            const receivedBytes = (() => {
+              let res = 0;
+              for (let i = 0; i <= ev.chunkIndexReceived; i++) {
+                res += b.chunks[i].byteLength;
+              }
+              return res;
+            })();
+            set((p) => ({
+              prog: {
+                ...p.prog,
+                [ev.fileKey]: {
+                  msg: `${pb(receivedBytes)} / ${pb(b.meta.totalBytes)}`,
+                  isDone: !nextChunk,
+                },
+              },
+            }));
+            if (!nextChunk) {
+              return;
+            }
+            const e: FileEvent = {
+              ...b.meta,
+              chunkIndex: nextChunkI,
+              chunk: nextChunk,
+            };
+            getDataConn().send(e);
+            return;
+          }
+          return rpc;
+        })();
+        return;
       }
 
-      if (e.fileKey && e.bytes) {
+      if (isFileEvent(ev)) {
+        const rpc: RPC = {
+          rpc: "acknowledge-chunk",
+          chunkIndexReceived: ev.chunkIndex,
+          fileKey: ev.fileKey,
+        };
+        _dataCon?.send(rpc);
+
         // first chunk
-        if (!blobs[e.fileKey]) {
-          const { bytes, ...rest } = e;
+        if (!blobs[ev.fileKey]) {
+          const { chunk, ...rest } = ev;
           const meta = rest;
-          const chunks: ArrayBuffer[] = [bytes];
+          const chunks: ArrayBuffer[] = [chunk];
           const getTotalChunksSize = () => {
             return chunks.reduce((acc, cur) => acc + cur.byteLength, 0);
           };
 
-          blobs[e.fileKey] = {
+          blobs[ev.fileKey] = {
             meta,
             chunks,
             getTotalChunksSize,
           };
 
           set((p) => ({
-            msgs: [...p.msgs, blobs[e.fileKey!].meta],
+            msgs: [...p.msgs, blobs[ev.fileKey!].meta],
             prog: {
               ...p.prog,
-              [e.fileKey!]: {
-                msg: `${pb(e.bytes?.byteLength ?? 0)} / ${pb(
-                  e.totalBytes ?? 0
+              [ev.fileKey!]: {
+                msg: `${pb(ev.chunk?.byteLength ?? 0)} / ${pb(
+                  ev.totalBytes ?? 0
                 )}`,
-                isDone: e.bytes?.byteLength === e.totalBytes,
+                isDone: ev.chunk?.byteLength === ev.totalBytes,
               },
             },
           }));
@@ -463,14 +535,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         }
 
         // next chunk
-        blobs[e.fileKey].chunks.push(e.bytes);
-        const prog = blobs[e.fileKey!]!.getTotalChunksSize();
+        blobs[ev.fileKey].chunks.push(ev.chunk);
+        const prog = blobs[ev.fileKey!]!.getTotalChunksSize();
         set((p) => ({
           prog: {
             ...p.prog,
-            [e.fileKey!]: {
-              msg: `${pb(prog)} / ${pb(e.totalBytes ?? 0)}`,
-              isDone: prog === e.totalBytes,
+            [ev.fileKey!]: {
+              msg: `${pb(prog)} / ${pb(ev.totalBytes ?? 0)}`,
+              isDone: prog === ev.totalBytes,
             },
           },
         }));
@@ -478,14 +550,16 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         return;
       }
 
-      const { bytes, ...rest } = e;
-      set((p) => ({
-        msgs: [...p.msgs, rest],
-      }));
+      if (isMsgEvent(ev)) {
+        set((p) => ({
+          msgs: [...p.msgs, ev],
+        }));
+      }
     },
     endCall: () => {
       disposeVideo();
-      _dataCon?.send(0);
+      const e: RPC = { rpc: "end-call" };
+      _dataCon?.send(e);
       set({ status: "connected" });
     },
   })
