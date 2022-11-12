@@ -1,4 +1,4 @@
-import { Button } from "../../components";
+import { Button, Upload } from "../../components";
 import { Icon } from "../../components/icon";
 import cn from "./bottom-nav.module.css";
 import { connectionActions, connectionStore } from "./connection-store";
@@ -68,6 +68,7 @@ export const BottomNav = (): JSX.Element | null => {
           </div>
         )}
         <div className={cn.row}>
+          <Upload />
           <textarea
             aria-label="message peer"
             className={cn.ta}

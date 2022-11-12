@@ -1,0 +1,19 @@
+.root {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: none;
+  cursor: "pointer";
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  min-height: initial;
+  opacity: 0;
+  filter: alpha(opacity=0);
+}
