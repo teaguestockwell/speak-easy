@@ -209,8 +209,10 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
       const callEnder = () => {
         if (document.visibilityState === "hidden") {
-          get().endCall();
-          get().backToPeerSelection();
+          if (get().status === "call-connected") {
+            get().endCall();
+            get().backToPeerSelection();
+          }
         }
       };
 
