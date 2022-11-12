@@ -21,3 +21,15 @@
   color: var(--fc-1);
   justify-content: flex-end;
 }
+
+.button {
+  word-break: break-word;
+  min-height: 40px;
+  background-color: var(--fc-0);
+  color: var(--bgc-0);
+  width: auto;
+  border: none;
+  border-radius: var(--rad);
+  margin: 0;
+  flex: 1;
+}

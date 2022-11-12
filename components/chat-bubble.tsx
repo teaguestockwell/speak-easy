@@ -18,7 +18,7 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
     return (
       <div ref={ref} className={cn.root} style={style}>
         {!p.downloadFile && <span className={cn.msg}>{p.msg}</span>}
-        {p.downloadFile && <Button onClick={p.downloadFile}>{p.msg}</Button>}
+        {p.downloadFile && <Button className={cn.button} onClick={p.downloadFile}>{p.msg}</Button>}
         <span className={cn.time}>{time}</span>
       </div>
     );
