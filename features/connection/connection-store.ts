@@ -284,11 +284,9 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       window.addEventListener("pagehide", callEnder);
       document.addEventListener(
         "click",
-        () => {
-          const sleepy = getNoSleep();
-          if (!sleepy.isEnabled) {
-            sleepy.enable();
-          }
+        function enableNoSleep() {
+          document.removeEventListener("click", enableNoSleep, false);
+          getNoSleep().enable();
         },
         false
       );
