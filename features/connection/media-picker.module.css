@@ -1,0 +1,26 @@
+.root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--pad);
+  margin: var(--pad)
+}
+
+.but {
+  min-height: 40px;
+  background-color: var(--fc-0);
+  color: var(--bgc-0);
+  width: 200px;
+  border: none;
+  border-radius: var(--rad);
+  margin: 0;
+}
+
+.title {
+  font-weight: 600;
+  color: var(--fc-0);
+  margin-bottom: calc(var(--pad) * 5)
+}

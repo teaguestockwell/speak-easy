@@ -67,6 +67,9 @@ export const Content = (): JSX.Element | null => {
       </div>
     );
   }
+  if (status === "select-media") {
+    return null;
+  }
   if (status === "calling-peer") {
     return flex;
   }

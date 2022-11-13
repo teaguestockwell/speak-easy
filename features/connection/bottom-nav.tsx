@@ -68,9 +68,7 @@ export const BottomNav = (): JSX.Element | null => {
           </div>
         )}
         <div className={cn.row}>
-          <Upload 
-            onFile={connectionActions.sendFile}
-          />
+          <Upload onFile={connectionActions.sendFile} />
           <textarea
             aria-label="message peer"
             className={cn.ta}
@@ -93,6 +91,9 @@ export const BottomNav = (): JSX.Element | null => {
     );
   }
   if (s.status === "calling-peer") {
+    return null;
+  }
+  if (s.status === "select-media") {
     return null;
   }
   if (s.status === "call-connected") {

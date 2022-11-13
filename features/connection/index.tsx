@@ -4,6 +4,7 @@ import { Loader } from "./loader";
 import { TopNav } from "./top-nav";
 import cn from "./index.module.css";
 import { useAutoConnect } from "./use-auto-connect";
+import { MediaPicker } from "./media-picker";
 
 export const Connection = () => {
   useAutoConnect();
@@ -13,6 +14,7 @@ export const Connection = () => {
       <Content />
       <BottomNav />
       <Loader />
+      <MediaPicker />
     </div>
   );
 };

@@ -65,10 +65,12 @@ export type ConnectionState = {
     | "awaiting-peer"
     | "connecting-peer"
     | "connected"
+    | "select-media"
     | "calling-peer"
     | "call-connected";
   isPeerTyping: boolean;
   prog: { [fileKey: string]: { msg: string; isDone: boolean } };
+  selectMediaVariant: "requestor" | "grantor";
 };
 
 const getInitState = (): ConnectionState => ({
@@ -79,6 +81,7 @@ const getInitState = (): ConnectionState => ({
   status: "enter-self-id",
   isPeerTyping: false,
   prog: {},
+  selectMediaVariant: "requestor",
 });
 
 export type ConnectionActions = {
@@ -89,13 +92,14 @@ export type ConnectionActions = {
   connectPeer: () => void;
   emit: () => void;
   receive: (e: any) => void;
-  callPeer: () => void;
-  endCall: () => void;
   dispose: () => void;
   backToPeerSelection: () => void;
   autoConnectToPeer: (peerIs: string) => void;
   sendFile: (f: File) => Promise<void>;
   downloadFile: (k: string) => void;
+  requestCall: () => void;
+  connectCall: (m: MediaStream | undefined) => void;
+  endCall: () => void;
 };
 
 let _peer: Peer | undefined;
@@ -125,19 +129,6 @@ const getDataConn = () => {
     );
   }
   return _dataCon;
-};
-
-const createSelfMediaStream = async () => {
-  try {
-    _selfMediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    return _selfMediaStream;
-  } catch (e) {
-    alert("cant find audio video device");
-    return;
-  }
 };
 
 export const getSelfMediaStream = () => {
@@ -326,21 +317,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           set({ status: "call-connected" });
         });
 
-        const willAnswer = confirm(`answer call from ${peerId}?`);
-
-        if (!willAnswer) {
-          get().endCall();
-          return;
-        }
-
-        createSelfMediaStream().then((selfStream) => {
-          if (!selfStream) {
-            get().endCall();
-            return;
-          }
-
-          call.answer(selfStream);
-        });
+        set({ status: "select-media", selectMediaVariant: "grantor" });
       });
     },
     connectPeer: () => {
@@ -369,35 +346,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         if (s === "closed" || s === "failed") {
           get().backToPeerSelection();
         }
-      });
-    },
-    callPeer: () => {
-      const { peerId } = get();
-      if (!peerId) {
-        throw new Error("cant connect to peer without id");
-      }
-
-      set({ status: "calling-peer" });
-
-      createSelfMediaStream().then((selfStream) => {
-        if (!selfStream) {
-          get().endCall();
-          return;
-        }
-
-        _peerMediaCon = getPeer().call(peerId, selfStream);
-        _peerMediaCon.on("error", get().endCall);
-        _peerMediaCon.on("close", get().endCall);
-        _peerMediaCon.on("iceStateChanged", (s) => {
-          if (s === "closed" || s === "failed") {
-            get().endCall();
-          }
-        });
-
-        _peerMediaCon.on("stream", (peerMediaStream) => {
-          _peerMediaStream = peerMediaStream;
-          set({ status: "call-connected" });
-        });
       });
     },
     emit: () => {
@@ -605,6 +553,46 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const e: RPC = { rpc: "end-call" };
       _dataCon?.send(e);
       set({ status: "connected" });
+    },
+    requestCall: () => {
+      set({ status: "select-media", selectMediaVariant: "requestor" });
+    },
+    connectCall: (ms) => {
+      const { peerId, selectMediaVariant } = get();
+
+      if (!peerId) {
+        throw new Error("cant connect to peer without id");
+      }
+      if (!ms) {
+        get().endCall();
+        return;
+      }
+
+      _selfMediaStream = ms;
+
+      if (selectMediaVariant === "requestor") {
+        set({ status: "calling-peer" });
+
+        _peerMediaCon = getPeer().call(peerId, ms);
+        _peerMediaCon.on("error", get().endCall);
+        _peerMediaCon.on("close", get().endCall);
+        _peerMediaCon.on("iceStateChanged", (s) => {
+          if (s === "closed" || s === "failed") {
+            get().endCall();
+          }
+        });
+
+        _peerMediaCon.on("stream", (peerMediaStream) => {
+          _peerMediaStream = peerMediaStream;
+          set({ status: "call-connected" });
+        });
+        return;
+      }
+
+      if (selectMediaVariant === "grantor") {
+        _peerMediaCon?.answer(ms);
+        return;
+      }
     },
   })
 );

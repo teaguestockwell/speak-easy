@@ -19,6 +19,9 @@ export const Loader = (): JSX.Element | null => {
     if (s.status === "connected") {
       return [""];
     }
+    if (s.status === "select-media") {
+      return [""];
+    }
     if (s.status === "calling-peer") {
       return [`calling ${s.peerId}`];
     }
@@ -53,6 +56,9 @@ export const Loader = (): JSX.Element | null => {
     return loader;
   }
   if (s.status === "connected") {
+    return null;
+  }
+  if (s.status === "select-media") {
     return null;
   }
   if (s.status === "calling-peer") {

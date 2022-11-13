@@ -69,11 +69,14 @@ export const TopNav = (): JSX.Element | null => {
           <Icon name="back" onClick={connectionActions.backToPeerSelection} />
         }
         center={<span>{peerId}</span>}
-        right={<Icon name="call" onClick={connectionActions.callPeer} />}
+        right={<Icon name="call" onClick={connectionActions.requestCall} />}
       />
     );
   }
   if (status === "calling-peer") {
+    return null;
+  }
+  if (status === "select-media") {
     return null;
   }
   if (status === "call-connected") {
