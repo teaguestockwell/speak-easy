@@ -229,6 +229,24 @@ const updateProgress = (k: string, received: number, total: number) => {
   }));
 };
 
+const addListeners = (peerCon: MediaConnection) => {
+  const get = connectionStore.getState;
+  const set = connectionStore.setState;
+  peerCon.on("error", get().endCall);
+  peerCon.on("close", get().endCall);
+  peerCon.on("iceStateChanged", (s) => {
+    if (s === "closed" || s === "failed") {
+      get().endCall();
+    }
+    if (s === "connected") {
+      set({ status: "call-connected" });
+    }
+  });
+  peerCon.on("stream", (peerMediaStream) => {
+    _peerMediaStream = peerMediaStream;
+  });
+};
+
 export const connectionStore = create<ConnectionState & ConnectionActions>(
   (set, get) => ({
     ...getInitState(),
@@ -315,25 +333,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         set({ status: "connected", peerId: c.peer });
       });
       _peer.on("call", (call) => {
-        const { peerId } = get();
-        if (!peerId) {
-          throw new Error("cant connect to peer without id");
-        }
-
         _peerMediaCon = call;
-        _peerMediaCon.on("error", get().endCall);
-        _peerMediaCon.on("close", get().endCall);
-        _peerMediaCon.on("iceStateChanged", (s) => {
-          if (s === "closed" || s === "failed") {
-            get().endCall();
-          }
-        });
-
-        _peerMediaCon.on("stream", (peerMediaStream) => {
-          _peerMediaStream = peerMediaStream;
-          set({ status: "call-connected" });
-        });
-
+        addListeners(_peerMediaCon);
         set({ status: "select-media", selectMediaVariant: "grantor" });
       });
     },
@@ -589,28 +590,17 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
       if (selectMediaVariant === "requestor") {
         set({ status: "calling-peer" });
-
         _peerMediaCon = getPeer().call(peerId, ms);
-        _peerMediaCon.on("error", get().endCall);
-        _peerMediaCon.on("close", get().endCall);
-        _peerMediaCon.on("iceStateChanged", (s) => {
-          if (s === "closed" || s === "failed") {
-            get().endCall();
-          }
-        });
-
-        _peerMediaCon.on("stream", (peerMediaStream) => {
-          _peerMediaStream = peerMediaStream;
-          set({ status: "call-connected" });
-        });
+        addListeners(_peerMediaCon);
         return;
       }
 
       if (selectMediaVariant === "grantor") {
-        if (_peerMediaCon) {
-          _peerMediaCon.answer(ms);
-          set({ status: "call-connected" });
+        if (!_peerMediaCon) {
+          get().endCall();
+          return;
         }
+        _peerMediaCon.answer(ms);
         return;
       }
     },
