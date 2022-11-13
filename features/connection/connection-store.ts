@@ -590,7 +590,10 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       }
 
       if (selectMediaVariant === "grantor") {
-        _peerMediaCon?.answer(ms);
+        if (_peerMediaCon) {
+          _peerMediaCon.answer(ms);
+          set({ status: "call-connected" });
+        }
         return;
       }
     },
