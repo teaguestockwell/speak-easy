@@ -48,10 +48,10 @@ const onSelect = (v: V) => async () => {
           audio: true,
           video: true,
         })
-        .catch(() => {
-          alert("screen sharing is not supported on mobile");
-          return undefined;
-        });
+        .catch();
+      if (!ms) {
+        alert("screen sharing is not supported on mobile");
+      }
     }
     if (v === "Back Camera") {
       ms = await mediaDevices.getUserMedia({
