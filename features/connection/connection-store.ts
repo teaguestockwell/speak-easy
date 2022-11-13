@@ -141,20 +141,10 @@ const getDataConn = () => {
 };
 
 export const getSelfMediaStream = () => {
-  if (!_selfMediaStream) {
-    throw new Error(
-      "media stream not initialized, you are not in a call with a peer"
-    );
-  }
   return _selfMediaStream;
 };
 
 export const getPeerMediaStream = () => {
-  if (!_peerMediaStream) {
-    throw new Error(
-      "media stream not initialized, you are not in a call with a peer"
-    );
-  }
   return _peerMediaStream;
 };
 
@@ -238,12 +228,10 @@ const addListeners = (peerCon: MediaConnection) => {
     if (s === "closed" || s === "failed") {
       get().endCall();
     }
-    if (s === "connected") {
-      set({ status: "call-connected" });
-    }
   });
   peerCon.on("stream", (peerMediaStream) => {
     _peerMediaStream = peerMediaStream;
+    set({ status: "call-connected" });
   });
 };
 

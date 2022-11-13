@@ -36,11 +36,17 @@ export const Content = (): JSX.Element | null => {
   const [selfVideo] = React.useState(React.createRef<HTMLVideoElement>());
   const [peerVideo] = React.useState(React.createRef<HTMLVideoElement>());
   React.useLayoutEffect(() => {
-    if (status === "call-connected" && selfVideo.current && peerVideo.current) {
-      selfVideo.current.srcObject = getSelfMediaStream();
-      peerVideo.current.srcObject = getPeerMediaStream();
-      selfVideo.current.play();
-      peerVideo.current.play();
+    if (status === "call-connected") {
+      const self = getSelfMediaStream();
+      const peer = getPeerMediaStream();
+      if (selfVideo.current && self) {
+        selfVideo.current.srcObject = self;
+        selfVideo.current.play();
+      }
+      if (peerVideo.current && peer) {
+        peerVideo.current.srcObject = peer;
+        peerVideo.current.play();
+      }
     }
   });
 

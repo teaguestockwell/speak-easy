@@ -27,7 +27,20 @@ const onSelect = (v: V) => async () => {
       // no op
     }
     if (v === "Audio Only") {
-      ms = await mediaDevices.getUserMedia({ audio: true, video: false });
+      // https://github.com/peers/peerjs/issues/944
+      const brokenStream = await mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+      const audios = brokenStream.getAudioTracks()
+      const canvas = Object.assign(document.createElement("canvas"), {
+        width: 1080,
+        height: 1080,
+      });
+      canvas.getContext("2d")?.fillRect(0, 0, 1080, 1080);
+      const stream = canvas.captureStream();
+      audios.forEach(t => stream.addTrack(t))
+      ms = stream;
     }
     if (v === "Screen") {
       ms = await mediaDevices.getDisplayMedia({ audio: true, video: true });
