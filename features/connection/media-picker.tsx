@@ -3,7 +3,7 @@ import { Button } from "../../components";
 import cn from "./media-picker.module.css";
 
 const variants = [
-  "Audio Only",
+  // "Audio Only",
   "Screen",
   "Font Camera",
   "Back Camera",
@@ -26,27 +26,33 @@ const onSelect = (v: V) => async () => {
     if (v === "Cancel") {
       // no op
     }
-    if (v === "Audio Only") {
-      // https://github.com/peers/peerjs/issues/944
-      const brokenStream = await mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-      const audios = brokenStream.getAudioTracks()
-      const canvas = Object.assign(document.createElement("canvas"), {
-        width: 1080,
-        height: 1080,
-      });
-      canvas.getContext("2d")?.fillRect(0, 0, 1080, 1080);
-      const stream = canvas.captureStream();
-      audios.forEach(t => stream.addTrack(t))
-      ms = stream;
-    }
+    // if (v === "Audio Only") {
+    //   // https://github.com/peers/peerjs/issues/944
+    //   const brokenStream = await mediaDevices.getUserMedia({
+    //     audio: true,
+    //     video: false,
+    //   });
+    //   const audios = brokenStream.getAudioTracks()
+    //   const canvas = Object.assign(document.createElement("canvas"), {
+    //     width: 1080,
+    //     height: 1080,
+    //   });
+    //   canvas.getContext("2d")?.fillRect(0, 0, 1080, 1080);
+    //   const stream = canvas.captureStream();
+    //   audios.forEach(t => stream.addTrack(t))
+    //   ms = stream;
+    // }
     if (v === "Screen") {
-      ms = await mediaDevices.getDisplayMedia({ audio: true, video: true });
+      ms = await mediaDevices.getDisplayMedia({
+        audio: true,
+        video: { facingMode: "user" },
+      });
     }
     if (v === "Back Camera") {
-      ms = await mediaDevices.getUserMedia({ audio: true, video: true });
+      ms = await mediaDevices.getUserMedia({
+        audio: true,
+        video: { facingMode: "environment" },
+      });
       constraints.facingMode = "environment";
     }
     if (v === "Font Camera") {
