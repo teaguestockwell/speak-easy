@@ -43,10 +43,15 @@ const onSelect = (v: V) => async () => {
     //   ms = stream;
     // }
     if (v === "Screen") {
-      ms = await mediaDevices.getDisplayMedia({
-        audio: true,
-        video: true,
-      });
+      ms = await mediaDevices
+        .getDisplayMedia({
+          audio: true,
+          video: true,
+        })
+        .catch(() => {
+          alert("screen sharing is not supported on mobile");
+          return undefined;
+        });
     }
     if (v === "Back Camera") {
       ms = await mediaDevices.getUserMedia({
