@@ -45,7 +45,7 @@ const onSelect = (v: V) => async () => {
     if (v === "Screen") {
       ms = await mediaDevices.getDisplayMedia({
         audio: true,
-        video: { facingMode: "user" },
+        video: true,
       });
     }
     if (v === "Back Camera") {
@@ -56,7 +56,10 @@ const onSelect = (v: V) => async () => {
       constraints.facingMode = "environment";
     }
     if (v === "Font Camera") {
-      ms = await mediaDevices.getUserMedia({ audio: true, video: true });
+      ms = await mediaDevices.getUserMedia({
+        audio: true,
+        video: { facingMode: "user" },
+      });
       constraints.facingMode = "user";
     }
 
