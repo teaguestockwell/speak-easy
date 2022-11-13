@@ -7,7 +7,7 @@
   "name": "Speak Easy",
   "short_name": "Speak Easy",
   "description": "Peer to peer chat",
-  "orientation": "portrait-primay",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/favorite-icons/android-chrome-192x192.png",
