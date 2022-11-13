@@ -5,6 +5,7 @@ import deb from "lodash/debounce";
 import throttle from "lodash/throttle";
 import { chunkFile } from "./chunk-file";
 import pb from "pretty-bytes";
+import NoSleep from "nosleep.js";
 
 type TextEvent = {
   senderId: string;
@@ -103,6 +104,7 @@ export type ConnectionActions = {
 };
 
 let _peer: Peer | undefined;
+let _noSleep: NoSleep | undefined;
 let _dataCon: DataConnection | undefined;
 let _selfMediaStream: MediaStream | undefined;
 let _peerMediaStream: MediaStream | undefined;
@@ -111,6 +113,13 @@ let _peerMediaCon: MediaConnection | undefined;
 const getPeerJs = async () => {
   const PeerJs = (await import("peerjs")).default;
   return PeerJs;
+};
+
+const getNoSleep = () => {
+  if (!_noSleep) {
+    _noSleep = new NoSleep();
+  }
+  return _noSleep!;
 };
 
 const getPeer = () => {
@@ -273,6 +282,16 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
       window.addEventListener("visibilitychange", callEnder);
       window.addEventListener("pagehide", callEnder);
+      document.addEventListener(
+        "click",
+        () => {
+          const sleepy = getNoSleep();
+          if (!sleepy.isEnabled) {
+            sleepy.enable();
+          }
+        },
+        false
+      );
 
       _peer.on("disconnected", get().backToPeerSelection);
       _peer.on("close", get().backToPeerSelection);
