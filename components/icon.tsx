@@ -71,6 +71,8 @@ export const Icon = React.forwardRef<
         justifyContent: "center",
         alignItems: "center",
         backgroundColor: bgColor,
+        boxShadow: "none",
+        borderRadius: "var(--rad)",
         ...sx,
       }}
       ref={ref as any}

@@ -43,6 +43,8 @@ export const Loader = (): JSX.Element | null => {
     </div>
   );
 
+  return loader
+
   if (s.status === "enter-self-id") {
     return null;
   }
