@@ -6,6 +6,7 @@ import throttle from "lodash/throttle";
 import { chunkFile } from "./chunk-file";
 import pb from "pretty-bytes";
 import NoSleep from "nosleep.js";
+import type { WorkerEvent } from "./ping-worker";
 
 type TextEvent = {
   senderId: string;
@@ -33,7 +34,7 @@ type RPC =
       rpc: "on-peer-type";
     }
   | {
-      rpc: "start-ping";
+      rpc: "ping";
     }
   | {
       rpc: "end-call";
@@ -164,18 +165,21 @@ const onPing = deb(disposeSession, 5000);
 let stopPing: undefined | (() => void);
 const startPinging = () => {
   stopPing?.();
-  const i = setInterval(() => {
-    const e: RPC = { rpc: "start-ping" };
-    _dataCon?.send(e);
-  }, 30000);
+  const worker = new Worker(new URL("./ping-worker.ts", import.meta.url));
+  worker.onmessage = (e: MessageEvent<WorkerEvent>) => {
+    if (e.data.rpc === "ping") {
+      const ev: RPC = { rpc: "ping" };
+      _dataCon?.send(ev);
+    }
+  };
   stopPing = () => {
-    clearInterval(i);
+    worker.terminate();
   };
 };
 
 const onPeerType = deb(() => {
   connectionStore.setState({ isPeerTyping: false });
-}, 30000);
+}, 10000);
 
 const omitted = new Set("1234567890-=[];'\\,./`!@#$%^&*()_+|\":?><~".split(""));
 
@@ -459,7 +463,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
             onPeerType();
             return;
           }
-          if (rpc === "start-ping") {
+          if (rpc === "ping") {
             onPing();
             return;
           }
