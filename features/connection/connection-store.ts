@@ -6,7 +6,6 @@ import throttle from "lodash/throttle";
 import { chunkFile } from "./chunk-file";
 import pb from "pretty-bytes";
 import NoSleep from "nosleep.js";
-import type { WorkerEvent } from "./ping-worker";
 
 type TextEvent = {
   senderId: string;
@@ -34,7 +33,7 @@ type RPC =
       rpc: "on-peer-type";
     }
   | {
-      rpc: "ping";
+      rpc: "keep-alive";
     }
   | {
       rpc: "end-call";
@@ -155,26 +154,14 @@ const disposeVideo = () => {
   _peerMediaCon?.close();
 };
 
-const disposeSession = () => {
-  disposeVideo();
-  connectionStore.getState().backToPeerSelection();
-};
-
-const onPing = deb(disposeSession, 5000);
-
-let stopPing: undefined | (() => void);
-const startPinging = () => {
-  stopPing?.();
-  const worker = new Worker(new URL("./ping-worker.ts", import.meta.url));
-  worker.onmessage = (e: MessageEvent<WorkerEvent>) => {
-    if (e.data.rpc === "ping") {
-      const ev: RPC = { rpc: "ping" };
-      _dataCon?.send(ev);
-    }
-  };
-  stopPing = () => {
-    worker.terminate();
-  };
+let disposeTimeout: undefined | NodeJS.Timeout;
+const keepAlive = () => clearInterval(disposeTimeout);
+const scheduleDispose = () => {
+  keepAlive();
+  disposeTimeout = setTimeout(() => {
+    disposeVideo();
+    connectionStore.getState().backToPeerSelection();
+  }, 2000);
 };
 
 const onPeerType = deb(() => {
@@ -257,7 +244,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       set(getInitState());
     },
     backToPeerSelection: () => {
-      stopPing?.();
       disposeVideo();
       _dataCon?.close();
       set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
@@ -290,6 +276,13 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         }
       };
 
+      const dispose = (cause: string) => () => {
+        // console.log("dispose peer", cause);
+        disposeVideo();
+        _dataCon?.close();
+        set(getInitState());
+      };
+
       window.addEventListener("visibilitychange", callEnder);
       window.addEventListener("pagehide", callEnder);
       document.addEventListener(
@@ -301,16 +294,15 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         false
       );
 
-      _peer.on("disconnected", get().backToPeerSelection);
-      _peer.on("close", get().backToPeerSelection);
-      _peer.on("error", get().backToPeerSelection);
+      _peer.on("disconnected", dispose("disconnected"));
+      _peer.on("close", dispose("close"));
+      _peer.on("error", dispose("error"));
       _peer.on("open", () => {
         set({ status: "awaiting-peer" });
         onOpen?.();
       });
 
       _peer.on("connection", (c) => {
-        startPinging();
         _dataCon = c;
         _dataCon.on("close", get().backToPeerSelection);
         _dataCon.on("error", get().backToPeerSelection);
@@ -344,7 +336,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       _dataCon = getPeer().connect(peerId, { reliable: false });
 
       _dataCon.on("open", () => {
-        startPinging();
         set({ status: "connected" });
       });
       _dataCon.on("error", get().backToPeerSelection);
@@ -369,6 +360,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       if (!msg) return;
 
       set((p) => ({ msg: "", msgs: [...p.msgs, e] }));
+      scheduleDispose();
       getDataConn().send(e);
     },
     sendFile: async (f: File) => {
@@ -411,6 +403,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         chunkIndex: 0,
         chunk: chunks[0],
       };
+      scheduleDispose();
       getDataConn().send(e);
       set((p) => ({
         msgs: [...p.msgs, blobs[fileKey].meta],
@@ -453,6 +446,10 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       if (isRpc(ev)) {
         const { rpc } = ev;
         ((): void => {
+          keepAlive();
+          if (rpc === "keep-alive") {
+            return;
+          }
           if (rpc === "end-call") {
             disposeVideo();
             set({ status: "connected" });
@@ -461,10 +458,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           if (rpc === "on-peer-type") {
             connectionStore.setState({ isPeerTyping: true });
             onPeerType();
-            return;
-          }
-          if (rpc === "ping") {
-            onPing();
             return;
           }
           if (rpc === "acknowledge-chunk") {
@@ -493,6 +486,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       }
 
       if (isFileEvent(ev)) {
+        const ka: RPC = { rpc: "keep-alive" };
+        _dataCon?.send(ka);
         const acknowledgeChunk = () => {
           const rpc: RPC = {
             rpc: "acknowledge-chunk",
@@ -553,6 +548,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       }
 
       if (isMsgEvent(ev)) {
+        const ka: RPC = { rpc: "keep-alive" };
+        _dataCon?.send(ka);
         set((p) => ({
           msgs: [...p.msgs, ev],
         }));

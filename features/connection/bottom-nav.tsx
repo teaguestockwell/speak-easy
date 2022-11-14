@@ -13,6 +13,7 @@ export const BottomNav = (): JSX.Element | null => {
           <label htmlFor="your id">your id</label>
           <input
             id="your id"
+            autoComplete="off"
             value={s.selfId}
             onChange={connectionActions.setSelfId}
             onKeyDown={(e) => {
@@ -41,6 +42,7 @@ export const BottomNav = (): JSX.Element | null => {
         <label htmlFor="peer id">peer id</label>
         <input
           id="peer id"
+          autoComplete="off"
           value={s.peerId}
           onChange={connectionActions.setPeerId}
           onKeyDown={(e) => {
