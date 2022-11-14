@@ -167,7 +167,7 @@ const startPinging = () => {
   const i = setInterval(() => {
     const e: RPC = { rpc: "start-ping" };
     _dataCon?.send(e);
-  }, 3000);
+  }, 30000);
   stopPing = () => {
     clearInterval(i);
   };
@@ -175,7 +175,7 @@ const startPinging = () => {
 
 const onPeerType = deb(() => {
   connectionStore.setState({ isPeerTyping: false });
-}, 5000);
+}, 30000);
 
 const omitted = new Set("1234567890-=[];'\\,./`!@#$%^&*()_+|\":?><~".split(""));
 
