@@ -4,8 +4,12 @@ import humanid from "human-id";
 import deb from "lodash/debounce";
 import throttle from "lodash/throttle";
 import { chunkFile } from "./chunk-file";
-import pb from "pretty-bytes";
+import _pb from "pretty-bytes";
 import NoSleep from "nosleep.js";
+
+const pb = (b: number) => {
+  return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+};
 
 type TextEvent = {
   senderId: string;
@@ -49,8 +53,8 @@ const blobs: {
   [k: string]: {
     meta: Omit<FileEvent, "chunk" | "chunkIndex">;
     chunks: Record<number, ArrayBuffer>;
-    getTotalChunksSize: () => number;
     receivedChunkIndexes: Record<number, true>;
+    receivedBytes: number;
     getNextChunk: () => { ab: ArrayBuffer; i: number } | void;
   };
 } = {};
@@ -194,7 +198,9 @@ const throttledProgress = throttle(
   }
 );
 
-const updateProgress = (k: string, received: number, total: number) => {
+const updateProgress = (k: string) => {
+  const received = blobs[k].receivedBytes;
+  const total = blobs[k].meta.totalBytes;
   if (received !== total) {
     throttledProgress(k, received, total);
     return;
@@ -364,6 +370,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       getDataConn().send(e);
     },
     sendFile: async (f: File) => {
+      if (
+        // 300MB
+        f.size > 314572800 &&
+        !window.confirm("The file is to large, and it may fail. Continue?")
+      ) {
+        return;
+      }
+
       const now = Date.now();
       const senderId = get().selfId;
       const fileKey = senderId + now;
@@ -371,7 +385,6 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         acc[i] = ab;
         return acc;
       }, {} as Record<number, ArrayBuffer>);
-      const getTotalChunksSize = () => f.size;
       const receivedChunkIndexes: Record<number, true> = {};
       const getNextChunk = () => {
         for (const i in Object.keys(chunks)) {
@@ -382,7 +395,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       };
       blobs[fileKey] = {
         chunks,
-        getTotalChunksSize,
+        receivedBytes: 0,
         getNextChunk,
         receivedChunkIndexes,
         meta: {
@@ -417,13 +430,13 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       }));
     },
     downloadFile: (k: string) => {
-      const { meta, chunks, getTotalChunksSize } = blobs[k];
+      const { meta, chunks, receivedBytes } = blobs[k];
       if (!meta.fileName) {
         alert("file not found");
         return;
       }
 
-      if (getTotalChunksSize() !== meta.totalBytes) {
+      if (receivedBytes !== meta.totalBytes) {
         alert("file still downloading");
         return;
       }
@@ -467,7 +480,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
               return;
             }
             b.receivedChunkIndexes[ev.chunkIndexReceived] = true;
-            updateProgress(ev.fileKey, ev.bytesReceived, b.meta.totalBytes);
+            b.receivedBytes = ev.bytesReceived;
+            updateProgress(ev.fileKey);
             const nextChunk = b.getNextChunk();
             if (!nextChunk) {
               return;
@@ -490,7 +504,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
                 }, 4000);
               }
             }, 1000);
-      
+
             return;
           }
           return rpc;
@@ -506,7 +520,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
             rpc: "acknowledge-chunk",
             chunkIndexReceived: ev.chunkIndex,
             fileKey: ev.fileKey,
-            bytesReceived: blobs[ev.fileKey].getTotalChunksSize(),
+            bytesReceived: blobs[ev.fileKey].receivedBytes
           };
           _dataCon?.send(rpc);
         };
@@ -515,20 +529,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           const { chunk, chunkIndex, ...rest } = ev;
           const meta = rest;
           const chunks = { [chunkIndex]: chunk };
-          const getTotalChunksSize = () => {
-            return Object.values(chunks).reduce(
-              (acc, cur) => acc + cur.byteLength,
-              0
-            );
-          };
 
           blobs[ev.fileKey] = {
             meta,
             chunks,
             receivedChunkIndexes: { [ev.chunkIndex]: true },
-            getTotalChunksSize,
             // the recipient will never know what chunks its missing, thats up to the sender
             getNextChunk: () => {},
+            receivedBytes: chunk.byteLength,
           };
 
           set((p) => ({
@@ -551,11 +559,8 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         // next chunk
         blobs[ev.fileKey].chunks[ev.chunkIndex] = ev.chunk;
         blobs[ev.fileKey].receivedChunkIndexes[ev.chunkIndex] = true;
-        updateProgress(
-          ev.fileKey,
-          blobs[ev.fileKey].getTotalChunksSize(),
-          ev.totalBytes
-        );
+        blobs[ev.fileKey].receivedBytes += ev.chunk.byteLength;
+        updateProgress(ev.fileKey);
         acknowledgeChunk();
         return;
       }
