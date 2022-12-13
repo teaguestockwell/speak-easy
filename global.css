@@ -48,6 +48,7 @@ textarea {
   border: none;
   border-radius: var(--rad);
   min-height: 40px;
+  background-color: var(--bgc-2);
 }
 
 button {
