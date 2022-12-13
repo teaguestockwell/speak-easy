@@ -478,6 +478,19 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
               chunk: nextChunk.ab,
             };
             getDataConn().send(e);
+
+            // chunk retry
+            setTimeout(() => {
+              if (!b.receivedChunkIndexes[e.chunkIndex]) {
+                getDataConn().send(e);
+                setTimeout(() => {
+                  if (!b.receivedChunkIndexes[e.chunkIndex]) {
+                    getDataConn().send(e);
+                  }
+                }, 4000);
+              }
+            }, 1000);
+      
             return;
           }
           return rpc;
