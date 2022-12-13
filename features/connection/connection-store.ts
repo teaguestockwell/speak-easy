@@ -23,6 +23,7 @@ export type FileEvent = TextEvent & {
   chunk: ArrayBuffer;
   chunkIndex: number;
   totalBytes: number;
+  totalChunks: number;
 };
 export type MsgEvent = FileEvent | TextEvent;
 
@@ -53,7 +54,7 @@ const blobs: {
   [k: string]: {
     meta: Omit<FileEvent, "chunk" | "chunkIndex">;
     chunks: Record<number, ArrayBuffer>;
-    receivedChunkIndexes: Record<number, true>;
+    unReceivedChunkIndexes: Set<number>;
     receivedBytes: number;
     getNextChunk: () => { ab: ArrayBuffer; i: number } | void;
   };
@@ -381,23 +382,22 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
       const now = Date.now();
       const senderId = get().selfId;
       const fileKey = senderId + now;
+      const unReceivedChunkIndexes = new Set<number>();
       const chunks = (await chunkFile(f)).reduce((acc, ab, i) => {
         acc[i] = ab;
+        unReceivedChunkIndexes.add(i);
         return acc;
       }, {} as Record<number, ArrayBuffer>);
-      const receivedChunkIndexes: Record<number, true> = {};
       const getNextChunk = () => {
-        for (const i in Object.keys(chunks)) {
-          if (!receivedChunkIndexes[i]) {
-            return { ab: chunks[i], i: +i };
-          }
-        }
+        const i = unReceivedChunkIndexes.values().next().value;
+        const res = { ab: chunks[i], i };
+        return res.ab ? res : undefined;
       };
       blobs[fileKey] = {
         chunks,
         receivedBytes: 0,
         getNextChunk,
-        receivedChunkIndexes,
+        unReceivedChunkIndexes,
         meta: {
           senderId,
           fileKey,
@@ -405,6 +405,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           createdAt: now,
           fileName: f.name,
           totalBytes: f.size,
+          totalChunks: unReceivedChunkIndexes.size,
         },
       };
 
@@ -479,7 +480,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
               alert("missing chunks for file " + ev.fileKey);
               return;
             }
-            b.receivedChunkIndexes[ev.chunkIndexReceived] = true;
+            b.unReceivedChunkIndexes.delete(ev.chunkIndexReceived);
             b.receivedBytes = ev.bytesReceived;
             updateProgress(ev.fileKey);
             const nextChunk = b.getNextChunk();
@@ -493,12 +494,15 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
             };
             getDataConn().send(e);
 
+            const getChunkUnReceived = () =>
+              b.unReceivedChunkIndexes.has(e.chunkIndex);
+
             // chunk retry
             setTimeout(() => {
-              if (!b.receivedChunkIndexes[e.chunkIndex]) {
+              if (getChunkUnReceived()) {
                 getDataConn().send(e);
                 setTimeout(() => {
-                  if (!b.receivedChunkIndexes[e.chunkIndex]) {
+                  if (getChunkUnReceived()) {
                     getDataConn().send(e);
                   }
                 }, 4000);
@@ -520,7 +524,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
             rpc: "acknowledge-chunk",
             chunkIndexReceived: ev.chunkIndex,
             fileKey: ev.fileKey,
-            bytesReceived: blobs[ev.fileKey].receivedBytes
+            bytesReceived: blobs[ev.fileKey].receivedBytes,
           };
           _dataCon?.send(rpc);
         };
@@ -533,7 +537,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           blobs[ev.fileKey] = {
             meta,
             chunks,
-            receivedChunkIndexes: { [ev.chunkIndex]: true },
+            unReceivedChunkIndexes: (() => {
+              const res = new Set<number>();
+              for (let i = 0; i < ev.totalChunks; i++) {
+                res.add(i);
+              }
+              res.delete(ev.chunkIndex);
+              return res;
+            })(),
             // the recipient will never know what chunks its missing, thats up to the sender
             getNextChunk: () => {},
             receivedBytes: chunk.byteLength,
@@ -558,7 +569,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
 
         // next chunk
         blobs[ev.fileKey].chunks[ev.chunkIndex] = ev.chunk;
-        blobs[ev.fileKey].receivedChunkIndexes[ev.chunkIndex] = true;
+        blobs[ev.fileKey].unReceivedChunkIndexes.delete(ev.chunkIndex);
         blobs[ev.fileKey].receivedBytes += ev.chunk.byteLength;
         updateProgress(ev.fileKey);
         acknowledgeChunk();
