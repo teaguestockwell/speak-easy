@@ -33,16 +33,18 @@ const ConnectedChatBubble = (p: MsgEvent) => {
 export const Content = (): JSX.Element | null => {
   const status = connectionStore((s) => s.status);
   const msgs = connectionStore((s) => s.msgs);
-  const [selfVideo] = React.useState(React.createRef<HTMLVideoElement>());
-  const [peerVideo] = React.useState(React.createRef<HTMLVideoElement>());
+  const selfVideo = React.useRef<HTMLVideoElement>(null)
+  const peerVideo = React.useRef<HTMLVideoElement>(null)
   React.useLayoutEffect(() => {
     if (status === "call-connected") {
       const self = getSelfMediaStream();
       const peer = getPeerMediaStream();
       if (selfVideo.current && self) {
+        alert('set self')
         selfVideo.current.srcObject = self;
       }
       if (peerVideo.current && peer) {
+        alert('set peer')
         peerVideo.current.srcObject = peer;
       }
     }
