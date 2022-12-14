@@ -91,7 +91,7 @@ export const Content = (): JSX.Element | null => {
           return (
             <div className={cn.call} style={{ flexDirection }}>
               <video ref={selfVideo} style={vidStyle} muted playsInline autoPlay />
-              <video ref={peerVideo} style={vidStyle} muted playsInline autoPlay controls />
+              <video ref={peerVideo} style={vidStyle} playsInline autoPlay controls />
             </div>
           );
         }}
