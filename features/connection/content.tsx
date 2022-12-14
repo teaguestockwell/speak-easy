@@ -40,11 +40,9 @@ export const Content = (): JSX.Element | null => {
       const self = getSelfMediaStream();
       const peer = getPeerMediaStream();
       if (selfVideo.current && self) {
-        alert('set self')
         selfVideo.current.srcObject = self;
       }
       if (peerVideo.current && peer) {
-        alert('set peer')
         peerVideo.current.srcObject = peer;
       }
     }
