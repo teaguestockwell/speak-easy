@@ -35,7 +35,7 @@ export const Content = (): JSX.Element | null => {
   const msgs = connectionStore((s) => s.msgs);
   const selfVideo = React.useRef<HTMLVideoElement>(null)
   const peerVideo = React.useRef<HTMLVideoElement>(null)
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (status === "call-connected") {
       getSelfMediaStream().then((self) => {
         if (selfVideo.current && self) {
