@@ -65,7 +65,7 @@ class MyDocument extends Document {
             href="/favorite-icons/safari-pinned-tab.svg"
             color="#5bbad5"
           />
-          <link rel="shortcut icon" href="/favorite-icons/icon.ico" />
+          <link rel="shortcut icon" href="/favorite-icons/favicon.ico" />
         </Head>
         <body>
           <Main />
