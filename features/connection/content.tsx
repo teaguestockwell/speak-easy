@@ -41,11 +41,9 @@ export const Content = (): JSX.Element | null => {
       const peer = getPeerMediaStream();
       if (selfVideo.current && self) {
         selfVideo.current.srcObject = self;
-        selfVideo.current.play();
       }
       if (peerVideo.current && peer) {
         peerVideo.current.srcObject = peer;
-        peerVideo.current.play();
       }
     }
   });
@@ -92,8 +90,8 @@ export const Content = (): JSX.Element | null => {
           };
           return (
             <div className={cn.call} style={{ flexDirection }}>
-              <video ref={selfVideo} style={vidStyle} muted />
-              <video ref={peerVideo} style={vidStyle} />
+              <video ref={selfVideo} style={vidStyle} muted playsInline autoPlay />
+              <video ref={peerVideo} style={vidStyle} muted playsInline autoPlay controls />
             </div>
           );
         }}
