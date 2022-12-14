@@ -145,11 +145,37 @@ const getDataConn = () => {
   return _dataCon;
 };
 
-export const getSelfMediaStream = () => {
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+export const getSelfMediaStream = async () => {
+  if (_selfMediaStream) {
+    return _selfMediaStream;
+  }
+  await sleep(200);
+  if (_selfMediaStream) {
+    return _selfMediaStream;
+  }
+  await sleep(1000);
+  if (_selfMediaStream) {
+    return _selfMediaStream;
+  }
+  await sleep(2000);
   return _selfMediaStream;
 };
 
-export const getPeerMediaStream = () => {
+export const getPeerMediaStream = async () => {
+  if (_peerMediaStream) {
+    return _peerMediaStream;
+  }
+  await sleep(200);
+  if (_peerMediaStream) {
+    return _peerMediaStream;
+  }
+  await sleep(1000);
+  if (_peerMediaStream) {
+    return _peerMediaStream;
+  }
+  await sleep(2000);
   return _peerMediaStream;
 };
 
