@@ -596,7 +596,9 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         // next chunk
         blobs[ev.fileKey].chunks[ev.chunkIndex] = ev.chunk;
         blobs[ev.fileKey].unReceivedChunkIndexes.delete(ev.chunkIndex);
-        blobs[ev.fileKey].receivedBytes += ev.chunk.byteLength;
+        const chunksReceived = ev.totalChunks - blobs[ev.fileKey].unReceivedChunkIndexes.size
+        const apxReceivedSize = chunksReceived * blobs[ev.fileKey].chunks[0].byteLength
+        blobs[ev.fileKey].receivedBytes = Math.min(apxReceivedSize, ev.totalBytes)
         updateProgress(ev.fileKey);
         acknowledgeChunk();
         return;
