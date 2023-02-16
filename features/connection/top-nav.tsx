@@ -33,7 +33,7 @@ export const TopNav = (): JSX.Element | null => {
       <Nav
         center={
           <div className={cn.centerRow}>
-            <span>{selfId}</span>
+            <span>your id: {selfId}</span>
             <Icon
               name="share"
               onClick={() => {
@@ -68,7 +68,7 @@ export const TopNav = (): JSX.Element | null => {
         left={
           <Icon name="back" onClick={connectionActions.backToPeerSelection} />
         }
-        center={<span>{peerId}</span>}
+        center={<span>peer id: {peerId}</span>}
         right={<Icon name="call" onClick={connectionActions.requestCall} />}
       />
     );
