@@ -10,6 +10,7 @@ import {
   FileEvent,
 } from "./connection-store";
 import cn from "./content.module.css";
+import { QrCode } from "../../components/qr-code";
 
 const ConnectedChatBubble = (p: MsgEvent) => {
   const { selfId } = connectionStore.getState();
@@ -33,20 +34,21 @@ const ConnectedChatBubble = (p: MsgEvent) => {
 export const Content = (): JSX.Element | null => {
   const status = connectionStore((s) => s.status);
   const msgs = connectionStore((s) => s.msgs);
-  const selfVideo = React.useRef<HTMLVideoElement>(null)
-  const peerVideo = React.useRef<HTMLVideoElement>(null)
+  const selfId = connectionStore((s) => s.selfId);
+  const selfVideo = React.useRef<HTMLVideoElement>(null);
+  const peerVideo = React.useRef<HTMLVideoElement>(null);
   React.useLayoutEffect(() => {
     if (status === "call-connected") {
       getSelfMediaStream().then((self) => {
         if (selfVideo.current && self) {
           selfVideo.current!.srcObject = self;
         }
-      })
+      });
       getPeerMediaStream().then((peer) => {
         if (peerVideo.current && peer) {
           peerVideo.current!.srcObject = peer;
         }
-      })
+      });
     }
   });
 
@@ -59,7 +61,17 @@ export const Content = (): JSX.Element | null => {
     return flex;
   }
   if (status == "awaiting-peer") {
-    return flex;
+    return (
+      <div className={cn.flex}>
+        <QrCode
+          link={
+            window.location.origin +
+            window.location.pathname +
+            `?peer=${encodeURIComponent(selfId)}`
+          }
+        />
+      </div>
+    );
   }
   if (status === "connecting-peer") {
     return flex;
@@ -92,8 +104,20 @@ export const Content = (): JSX.Element | null => {
           };
           return (
             <div className={cn.call} style={{ flexDirection }}>
-              <video ref={selfVideo} style={vidStyle} muted playsInline autoPlay />
-              <video ref={peerVideo} style={vidStyle} playsInline autoPlay controls />
+              <video
+                ref={selfVideo}
+                style={vidStyle}
+                muted
+                playsInline
+                autoPlay
+              />
+              <video
+                ref={peerVideo}
+                style={vidStyle}
+                playsInline
+                autoPlay
+                controls
+              />
             </div>
           );
         }}
