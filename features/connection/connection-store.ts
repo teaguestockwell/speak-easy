@@ -530,10 +530,20 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
                 setTimeout(() => {
                   if (getChunkUnReceived()) {
                     getDataConn().send(e);
+                    setTimeout(() => {
+                      if (getChunkUnReceived()) {
+                        getDataConn().send(e);
+                        setTimeout(() => {
+                          if (getChunkUnReceived()) {
+                            getDataConn().send(e);
+                          }
+                        }, 5000)
+                      }
+                    }, 2000)
                   }
-                }, 4000);
+                }, 1000);
               }
-            }, 1000);
+            }, 500);
 
             return;
           }
