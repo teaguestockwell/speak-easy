@@ -18,7 +18,7 @@
   <p align="center">
     An end to end encrypted peer to peer chat client
     <br />
-    <a href="https://github.com/teaguestockwell/speak-easy">View Portfolio</a>
+    <a href="https://github.com/teaguestockwell/speak-easy">Live App</a>
     ·
     <a href="https://github.com/teaguestockwell/speak-easy/issues">Report Bug</a>
   </p>
@@ -32,18 +32,14 @@
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
 </details>
 
 <!-- ABOUT THE PROJECT -->
 
 ## About The Project
-A messaging client exercising asymmetric encryption from [window.crypto.subtle](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto) and [peerjs](https://github.com/peers/peerjs)
-
-when ou connect to another client, you share your RSA AES 256 public key so they can send you encrypted messages over webRTC, then using the private key you can decrypt the messages to plain text.
+A chat pwa using webtrc and [peerjs](https://github.com/peers/peerjs). You can video chat, screen share, shares files (up to 300MB) and text.
 
 ## Getting Started
-
 To get a local copy up and running follow these simple steps.
 
 1. Fork the repository
@@ -63,13 +59,10 @@ yarn dev
 5. Navigate to http://localhost:3006
 
 ## Roadmap
-
 See the [open issues](https://github.com/teaguestockwell/speak-easy/issues) for a list of proposed features (and known issues).
 
 ## License
-
 Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Contact
-
 Teague Stockwell - [LinkedIn](https://www.linkedin.com/in/teague-stockwell)
