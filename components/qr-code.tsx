@@ -9,14 +9,15 @@ export type QrCodeProps = {
 
 export const QrCode = (props: QrCodeProps) => {
   const [error, setError] = React.useState(props.link ? "" : "no link");
-  const [value, setValue] = React.useState("");
-  React.useEffect(() => {
-    qr.toDataURL(props.link).then(setValue).catch(setError);
+  const ref = React.useRef(null);
+  React.useLayoutEffect(() => {
+    qr.toCanvas(ref.current, props.link, { width: 1000 }).catch(setError);
   }, [props.link]);
 
-  if (error || !value) {
-    return <span>{error}</span>;
+  if (error) {
+    console.error('qr code', error)
+    return
   }
 
-  return <img className={cn.root} alt={props.link} src={value} />;
+  return <canvas className={cn.root} ref={ref} />;
 };
