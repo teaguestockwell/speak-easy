@@ -5,7 +5,7 @@ import cn from "./media-picker.module.css";
 const variants = [
   // "Audio Only",
   "Screen",
-  "Font Camera",
+  "Front Camera",
   "Back Camera",
   "Cancel",
 ] as const;
@@ -60,7 +60,7 @@ const onSelect = (v: V) => async () => {
       });
       constraints.facingMode = "environment";
     }
-    if (v === "Font Camera") {
+    if (v === "Front Camera") {
       ms = await mediaDevices.getUserMedia({
         audio: true,
         video: { facingMode: "user" },
@@ -80,6 +80,15 @@ const onSelect = (v: V) => async () => {
   }
 };
 
+const supportsTouch =
+  typeof window !== "undefined"
+    ? "ontouchstart" in window || navigator.maxTouchPoints
+    : false;
+
+const supported = variants.filter((e) =>
+  supportsTouch ? e !== "Screen" : true
+);
+
 export const MediaPicker = () => {
   const status = connectionStore((s) => s.status);
   const { selectMediaVariant } = connectionStore.getState();
@@ -90,7 +99,7 @@ export const MediaPicker = () => {
     return (
       <div className={cn.root}>
         <span className={cn.title}>{title}</span>
-        {variants.map((v) => (
+        {supported.map((v) => (
           <Button key={v} className={cn.but} onClick={onSelect(v)}>
             {v}
           </Button>

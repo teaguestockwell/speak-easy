@@ -29,35 +29,7 @@ export const TopNav = (): JSX.Element | null => {
     return null;
   }
   if (status == "awaiting-peer") {
-    return (
-      <Nav
-        center={
-          <div className={cn.centerRow}>
-            <span>your id: {selfId}</span>
-            <Icon
-              name="share"
-              onClick={() => {
-                const url =
-                  window.location.origin +
-                  window.location.pathname +
-                  `?peer=${encodeURIComponent(selfId)}`;
-                copyTextToClipboard(
-                  url,
-                  () =>
-                    alert(
-                      "copied url to your clipboard, please share with a peer so they can auto connect"
-                    ),
-                  () =>
-                    alert(
-                      `${url}\n\nplease share this url with a peer so they can auto connect`
-                    )
-                );
-              }}
-            />
-          </div>
-        }
-      />
-    );
+    return null;
   }
   if (status === "connecting-peer") {
     return null;

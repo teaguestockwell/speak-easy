@@ -1,5 +1,5 @@
 import React from "react";
-import { ChatBubble } from "../../components";
+import { Button, ChatBubble } from "../../components";
 import { WithMainAxisFlexDir } from "../../hooks";
 import {
   connectionStore,
@@ -11,6 +11,8 @@ import {
 } from "./connection-store";
 import cn from "./content.module.css";
 import { QrCode } from "../../components/qr-code";
+import { copyTextToClipboard } from "./copy-to-clipboard";
+import { Icon } from "../../components/icon";
 
 const ConnectedChatBubble = (p: MsgEvent) => {
   const { selfId } = connectionStore.getState();
@@ -55,14 +57,27 @@ export const Content = (): JSX.Element | null => {
   const flex = <div className={cn.flex} />;
 
   if (status === "enter-self-id") {
-    return flex;
+    return (
+      <div className={cn.flexCol}>
+        <Icon size={150} name="call" />
+        <span className={cn.title}>Speak Easy</span>
+        <span className={cn.subTitle}>
+          encrypted peer to peer chat, video and file sharing
+        </span>
+      </div>
+    );
   }
   if (status === "connecting-self") {
     return flex;
   }
   if (status == "awaiting-peer") {
+    const url =
+      window.location.origin +
+      window.location.pathname +
+      `?peer=${encodeURIComponent(selfId)}`;
+    const copy = () => copyTextToClipboard(url);
     return (
-      <div className={cn.flex}>
+      <div className={cn.flexCol}>
         <QrCode
           link={
             window.location.origin +
@@ -70,6 +85,11 @@ export const Content = (): JSX.Element | null => {
             `?peer=${encodeURIComponent(selfId)}`
           }
         />
+        <span className={cn.title}>connect to peer</span>
+        <span className={cn.subTitle}>your id is: {selfId}</span>
+        <Button className={cn.but} onClick={copy}>
+          copy magic link
+        </Button>
       </div>
     );
   }

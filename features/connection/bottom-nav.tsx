@@ -28,7 +28,7 @@ export const BottomNav = (): JSX.Element | null => {
           className={cn.but}
           onClick={() => connectionActions.publishToBroker()}
         >
-          next
+          continue
         </Button>
       </div>
     );

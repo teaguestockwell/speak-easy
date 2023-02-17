@@ -5,6 +5,15 @@
   align-items: center;
 }
 
+.flexCol {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 99999;
+  justify-content: center;
+  align-items: center;
+  gap: calc(var(--pad) * 2);
+}
+
 .msg {
   display: flex;
   flex-grow: 99999;
@@ -23,4 +32,24 @@
   display: flex;
   gap: var(--pad);
   padding: var(--pad);
+}
+
+.title {
+  font-size: 2rem;
+  text-align: center;
+}
+
+.subTitle {
+  text-align: center;
+  margin-inline: var(--pad);
+}
+
+.but {
+  min-height: 40px;
+  background-color: var(--fc-0);
+  color: var(--bgc-0);
+  width: auto;
+  border: none;
+  border-radius: var(--rad);
+  margin: 0;
 }
