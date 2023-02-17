@@ -15,8 +15,8 @@ export const QrCode = (props: QrCodeProps) => {
   }, [props.link]);
 
   if (error) {
-    console.error('qr code', error)
-    return
+    console.error("qr code", error);
+    return null;
   }
 
   return <canvas className={cn.root} ref={ref} />;
