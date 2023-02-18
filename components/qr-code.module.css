@@ -1,4 +1,4 @@
 .root {
-  width: min(95vw, calc(100vh - 144px)) !important;
-  height: min(95vw, calc(100vh - 144px)) !important;
+  width: min(95vw, calc(100vh - 144px), 500px) !important;
+  height: min(95vw, calc(100vh - 144px), 500px) !important;
 }

@@ -7,6 +7,27 @@ import { chunkFile } from "./chunk-file";
 import _pb from "pretty-bytes";
 import NoSleep from "nosleep.js";
 
+const withRetry = (
+  operation: () => Promise<void> | void,
+  condition: () => boolean,
+  timeout = 15000
+) => {
+  let ms = 500;
+  let waited = 0;
+  return async () => {
+    while (waited < timeout) {
+      if (condition()) {
+        return;
+      }
+      await operation();
+      await new Promise((res) => setTimeout(res, ms));
+      waited += ms;
+      ms *= 2;
+    }
+    throw new Error("timeout exceeded for: " + operation.name);
+  };
+};
+
 const pb = (b: number) => {
   return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
@@ -520,30 +541,10 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
             };
             getDataConn().send(e);
 
-            const getChunkUnReceived = () =>
-              b.unReceivedChunkIndexes.has(e.chunkIndex);
-
-            // chunk retry
-            setTimeout(() => {
-              if (getChunkUnReceived()) {
-                getDataConn().send(e);
-                setTimeout(() => {
-                  if (getChunkUnReceived()) {
-                    getDataConn().send(e);
-                    setTimeout(() => {
-                      if (getChunkUnReceived()) {
-                        getDataConn().send(e);
-                        setTimeout(() => {
-                          if (getChunkUnReceived()) {
-                            getDataConn().send(e);
-                          }
-                        }, 5000)
-                      }
-                    }, 2000)
-                  }
-                }, 1000);
-              }
-            }, 500);
+            const condition = () => b.unReceivedChunkIndexes.has(e.chunkIndex);
+            const operation = () => getDataConn().send(e);
+            const send = withRetry(operation, condition);
+            send().catch(() => console.log('failed to send chunk', e))
 
             return;
           }
@@ -606,9 +607,14 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         // next chunk
         blobs[ev.fileKey].chunks[ev.chunkIndex] = ev.chunk;
         blobs[ev.fileKey].unReceivedChunkIndexes.delete(ev.chunkIndex);
-        const chunksReceived = ev.totalChunks - blobs[ev.fileKey].unReceivedChunkIndexes.size
-        const apxReceivedSize = chunksReceived * blobs[ev.fileKey].chunks[0].byteLength
-        blobs[ev.fileKey].receivedBytes = Math.min(apxReceivedSize, ev.totalBytes)
+        const chunksReceived =
+          ev.totalChunks - blobs[ev.fileKey].unReceivedChunkIndexes.size;
+        const apxReceivedSize =
+          chunksReceived * blobs[ev.fileKey].chunks[0].byteLength;
+        blobs[ev.fileKey].receivedBytes = Math.min(
+          apxReceivedSize,
+          ev.totalBytes
+        );
         updateProgress(ev.fileKey);
         acknowledgeChunk();
         return;
