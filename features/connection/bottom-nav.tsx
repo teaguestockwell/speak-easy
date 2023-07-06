@@ -1,10 +1,10 @@
 import { Button, Upload } from "../../components";
 import { Icon } from "../../components/icon";
 import cn from "./bottom-nav.module.css";
-import { connectionActions, connectionStore } from "./connection-store";
+import { useStore, connectionStore } from "./connection-store";
 
 export const BottomNav = (): JSX.Element | null => {
-  const s = connectionStore((s) => s);
+  const s = useStore((s) => s);
 
   if (s.status === "enter-self-id") {
     return (
@@ -15,10 +15,10 @@ export const BottomNav = (): JSX.Element | null => {
             id="your id"
             autoComplete="off"
             value={s.selfId}
-            onChange={connectionActions.setSelfId}
+            onChange={connectionStore.lpc.setSelfId}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                connectionActions.publishToBroker();
+                connectionStore.lpc.publishToBroker(undefined);
                 e.preventDefault();
               }
             }}
@@ -26,7 +26,7 @@ export const BottomNav = (): JSX.Element | null => {
         </div>
         <Button
           className={cn.but}
-          onClick={() => connectionActions.publishToBroker()}
+          onClick={() => connectionStore.lpc.publishToBroker(undefined)}
         >
           continue
         </Button>
@@ -44,15 +44,15 @@ export const BottomNav = (): JSX.Element | null => {
           id="peer id"
           autoComplete="off"
           value={s.peerId}
-          onChange={connectionActions.setPeerId}
+          onChange={connectionStore.lpc.setPeerId}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              connectionActions.connectPeer();
+              connectionStore.lpc.connectPeer(undefined);
               e.preventDefault();
             }
           }}
         />
-        <Button className={cn.but} onClick={connectionActions.connectPeer}>
+        <Button className={cn.but} onClick={() => connectionStore.lpc.connectPeer(undefined)}>
           connect
         </Button>
       </div>
@@ -70,15 +70,15 @@ export const BottomNav = (): JSX.Element | null => {
           </div>
         )}
         <div className={cn.row}>
-          <Upload onFile={connectionActions.sendFile} />
+          <Upload onFile={connectionStore.lpc.sendFile} />
           <textarea
             aria-label="message peer"
             className={cn.ta}
             value={s.msg}
-            onChange={connectionActions.setMsg}
+            onChange={connectionStore.lpc.setMsg}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
-                connectionActions.emit();
+                connectionStore.lpc.sendMsg(undefined)
                 e.preventDefault();
               }
             }}
@@ -86,7 +86,7 @@ export const BottomNav = (): JSX.Element | null => {
           <Icon
             sx={{ marginBottom: 4 }}
             name="comment"
-            onClick={connectionActions.emit}
+            onClick={() => connectionStore.lpc.sendMsg(undefined)}
           />
         </div>
       </div>

@@ -1,8 +1,8 @@
-import { connectionStore } from "./connection-store";
+import { useStore } from "./connection-store";
 import cn from "./loader.module.css";
 
 export const Loader = (): JSX.Element | null => {
-  const s = connectionStore((s) => s);
+  const s = useStore((s) => s);
   const [text] = ((): [string] => {
     if (s.status === "enter-self-id") {
       return [""];

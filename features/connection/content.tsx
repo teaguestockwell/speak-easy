@@ -5,7 +5,7 @@ import {
   connectionStore,
   getSelfMediaStream,
   getPeerMediaStream,
-  connectionActions,
+  useStore,
   MsgEvent,
   FileEvent,
 } from "./connection-store";
@@ -15,8 +15,8 @@ import { copyTextToClipboard } from "./copy-to-clipboard";
 import { Icon } from "../../components/icon";
 
 const ConnectedChatBubble = (p: MsgEvent) => {
-  const { selfId } = connectionStore.getState();
-  const prog = connectionStore((s) => s.prog[(p as FileEvent).fileKey ?? ""]);
+  const { selfId } = connectionStore.get();
+  const prog = useStore((s) => s.prog[(p as FileEvent).fileKey ?? ""]);
 
   return (
     <ChatBubble
@@ -26,7 +26,7 @@ const ConnectedChatBubble = (p: MsgEvent) => {
       createdAt={p.createdAt}
       downloadFile={
         prog?.isDone
-          ? () => connectionActions.downloadFile((p as FileEvent).fileKey!)
+          ? () => connectionStore.lpc.downloadFile((p as FileEvent).fileKey!)
           : undefined
       }
     />
@@ -34,9 +34,9 @@ const ConnectedChatBubble = (p: MsgEvent) => {
 };
 
 export const Content = (): JSX.Element | null => {
-  const status = connectionStore((s) => s.status);
-  const msgs = connectionStore((s) => s.msgs);
-  const selfId = connectionStore((s) => s.selfId);
+  const status = useStore((s) => s.status);
+  const msgs = useStore((s) => s.msgs);
+  const selfId = useStore((s) => s.selfId);
   const selfVideo = React.useRef<HTMLVideoElement>(null);
   const peerVideo = React.useRef<HTMLVideoElement>(null);
   React.useLayoutEffect(() => {

@@ -1,5 +1,5 @@
 import cn from "./top-nav.module.css";
-import { connectionActions, connectionStore } from "./connection-store";
+import { connectionStore, useStore } from "./connection-store";
 import { Icon } from "../../components/icon";
 import { copyTextToClipboard } from "./copy-to-clipboard";
 
@@ -18,9 +18,9 @@ const Nav = (p: {
 };
 
 export const TopNav = (): JSX.Element | null => {
-  const status = connectionStore((s) => s.status);
-  const peerId = connectionStore((s) => s.peerId);
-  const selfId = connectionStore((s) => s.selfId);
+  const status = useStore((s) => s.status);
+  const peerId = useStore((s) => s.peerId);
+  const selfId = useStore((s) => s.selfId);
 
   if (status === "enter-self-id") {
     return null;
@@ -38,10 +38,10 @@ export const TopNav = (): JSX.Element | null => {
     return (
       <Nav
         left={
-          <Icon name="back" onClick={connectionActions.backToPeerSelection} />
+          <Icon name="back" onClick={() => connectionStore.lpc.backToPeerSelection(undefined)} />
         }
         center={<span>peer id: {peerId}</span>}
-        right={<Icon name="call" onClick={connectionActions.requestCall} />}
+        right={<Icon name="call" onClick={() => connectionStore.lpc.requestCall(undefined)} />}
       />
     );
   }
@@ -54,7 +54,7 @@ export const TopNav = (): JSX.Element | null => {
   if (status === "call-connected") {
     return (
       <Nav
-        left={<Icon name="back" onClick={connectionActions.endCall} />}
+        left={<Icon name="back" onClick={() => connectionStore.lpc.endCall(undefined)} />}
         center={<span>{peerId}</span>}
       />
     );

@@ -1,4 +1,3 @@
-import create from "zustand";
 import type { Peer, DataConnection, MediaConnection } from "peerjs";
 import humanid from "human-id";
 import deb from "lodash/debounce";
@@ -6,6 +5,8 @@ import throttle from "lodash/throttle";
 import { chunkFile } from "./chunk-file";
 import _pb from "pretty-bytes";
 import NoSleep from "nosleep.js";
+import { create } from "udp-rpc-bridge";
+import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 
 const withRetry = (
   operation: () => Promise<void> | void,
@@ -65,12 +66,6 @@ type RPC =
       rpc: "end-call";
     };
 
-const isRpc = (e: any): e is RPC => !!e && typeof e === "object" && "rpc" in e;
-const isFileEvent = (e: any): e is FileEvent =>
-  !!e && typeof e === "object" && "fileKey" in e;
-const isMsgEvent = (e: any): e is MsgEvent =>
-  !!e && typeof e === "object" && "msg" in e;
-
 const blobs: {
   [k: string]: {
     meta: Omit<FileEvent, "chunk" | "chunkIndex">;
@@ -81,7 +76,7 @@ const blobs: {
   };
 } = {};
 
-export type ConnectionState = {
+type State = {
   selfId: string;
   peerId: string;
   msg: string;
@@ -100,7 +95,7 @@ export type ConnectionState = {
   selectMediaVariant: "requestor" | "grantor";
 };
 
-const getInitState = (): ConnectionState => ({
+const getInitState = (): State => ({
   selfId: humanid(" ").toLowerCase(),
   peerId: "",
   msg: "",
@@ -111,14 +106,13 @@ const getInitState = (): ConnectionState => ({
   selectMediaVariant: "requestor",
 });
 
-export type ConnectionActions = {
+type Lpcs = {
   setSelfId: (e: { target: { value: string } }) => void;
   setPeerId: (e: { target: { value: string } }) => void;
   setMsg: (e: { target: { value: string } }) => void;
   publishToBroker: (onOpen?: () => unknown) => Promise<void>;
   connectPeer: () => void;
-  emit: () => void;
-  receive: (e: any) => void;
+  sendMsg: () => void;
   dispose: () => void;
   backToPeerSelection: () => void;
   autoConnectToPeer: (peerIs: string) => void;
@@ -127,6 +121,19 @@ export type ConnectionActions = {
   requestCall: () => void;
   connectCall: (m: MediaStream | undefined) => void;
   endCall: () => void;
+};
+
+type RPCs = {
+  keepAlive: () => Promise<{}>;
+  endCall: () => Promise<{}>;
+  onPeerType: () => Promise<{}>;
+  acknowledgeChunk: (e: {
+    fileKey: string;
+    chunkIndexReceived: number;
+    bytesReceived: number;
+  }) => Promise<{}>;
+  onFile: (e: FileEvent) => Promise<{}>;
+  onMsg: (e: MsgEvent) => Promise<{}>;
 };
 
 let _peer: Peer | undefined;
@@ -155,15 +162,6 @@ const getPeer = () => {
     );
   }
   return _peer;
-};
-
-const getDataConn = () => {
-  if (!_dataCon) {
-    throw new Error(
-      "data connection not initialized, you are not connected to a peer"
-    );
-  }
-  return _dataCon;
 };
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -212,12 +210,12 @@ const scheduleDispose = () => {
   keepAlive();
   disposeTimeout = setTimeout(() => {
     disposeVideo();
-    connectionStore.getState().backToPeerSelection();
+    connectionStore.lpc.backToPeerSelection(undefined);
   }, 2000);
 };
 
 const onPeerType = deb(() => {
-  connectionStore.setState({ isPeerTyping: false });
+  connectionStore.set({ isPeerTyping: false });
 }, 10000);
 
 const omitted = new Set("1234567890-=[];'\\,./`!@#$%^&*()_+|\":?><~".split(""));
@@ -234,7 +232,7 @@ const cleanId = (s: string) => {
 // dont call this with the final progress event because it may be discarded
 const throttledProgress = throttle(
   (k: string, received: number, total: number) => {
-    connectionStore.setState((p) => ({
+    connectionStore.set((p) => ({
       prog: {
         ...p.prog,
         [k]: {
@@ -253,7 +251,7 @@ const updateProgress = (k: string) => {
     throttledProgress(k, received, total);
     return;
   }
-  connectionStore.setState((p) => ({
+  connectionStore.set((p) => ({
     prog: {
       ...p.prog,
       [k]: {
@@ -265,305 +263,334 @@ const updateProgress = (k: string) => {
 };
 
 const addListeners = (peerCon: MediaConnection) => {
-  const get = connectionStore.getState;
-  const set = connectionStore.setState;
-  peerCon.on("error", get().endCall);
-  peerCon.on("close", get().endCall);
+  const endCall = () => connectionStore.lpc.endCall(undefined);
+  peerCon.on("error", endCall);
+  peerCon.on("close", endCall);
   peerCon.on("iceStateChanged", (s) => {
     if (s === "closed" || s === "failed") {
-      get().endCall();
+      endCall();
     }
   });
   peerCon.on("stream", (peerMediaStream) => {
     _peerMediaStream = peerMediaStream;
-    set({ status: "call-connected" });
+    connectionStore.set({ status: "call-connected" });
   });
 };
 
-export const connectionStore = create<ConnectionState & ConnectionActions>(
-  (set, get) => ({
-    ...getInitState(),
-    autoConnectToPeer: (peerId) => {
-      set({
-        ...getInitState(),
-        peerId,
-      });
+export const connectionStore = create<RPCs, State, Lpcs>(
+  ({ get, set, lpc, rpc, pipe }) => ({
+    state: getInitState(),
+    lpcs: {
+      autoConnectToPeer: (peerId) => {
+        set({
+          ...getInitState(),
+          peerId,
+        });
 
-      get().publishToBroker(() => {
-        get().connectPeer();
-      });
-    },
-    dispose: () => {
-      get().endCall();
-      set(getInitState());
-    },
-    backToPeerSelection: () => {
-      disposeVideo();
-      _dataCon?.close();
-      set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
-    },
-    setSelfId: (e) => set({ selfId: cleanId(e.target.value) }),
-    setPeerId: (e) => set({ peerId: cleanId(e.target.value) }),
-    setMsg: (e) => {
-      set({ msg: e.target.value });
-      const ev: RPC = { rpc: "on-peer-type" };
-      _dataCon?.send(ev);
-    },
-    publishToBroker: async (onOpen) => {
-      const selfId = get().selfId.trim();
-      set({ selfId });
-      if (!selfId) {
-        return;
-      }
-
-      set({ status: "connecting-self" });
-
-      const PeerJs = await getPeerJs();
-      _peer = new PeerJs(selfId);
-
-      const callEnder = () => {
-        if (document.visibilityState === "hidden") {
-          if (get().status === "call-connected") {
-            get().endCall();
-            get().backToPeerSelection();
-          }
-        }
-      };
-
-      const dispose = (cause: string) => () => {
-        // console.log("dispose peer", cause);
+        lpc.publishToBroker(() => {
+          lpc.connectPeer(undefined);
+        });
+      },
+      dispose: () => {
+        lpc.endCall(undefined);
+        set(getInitState());
+      },
+      backToPeerSelection: () => {
         disposeVideo();
         _dataCon?.close();
-        set(getInitState());
-      };
+        set({ peerId: "", status: "awaiting-peer", msg: "", msgs: [] });
+      },
+      setSelfId: (e) => set({ selfId: cleanId(e.target.value) }),
+      setPeerId: (e) => set({ peerId: cleanId(e.target.value) }),
+      setMsg: (e) => {
+        set({ msg: e.target.value });
+        rpc.onPeerType(undefined);
+      },
+      publishToBroker: async (onOpen) => {
+        const selfId = get().selfId.trim();
+        set({ selfId });
+        if (!selfId) {
+          return;
+        }
 
-      window.addEventListener("visibilitychange", callEnder);
-      window.addEventListener("pagehide", callEnder);
-      document.addEventListener(
-        "click",
-        function enableNoSleep() {
-          document.removeEventListener("click", enableNoSleep, false);
-          getNoSleep().enable();
-        },
-        false
-      );
+        set({ status: "connecting-self" });
 
-      _peer.on("disconnected", dispose("disconnected"));
-      _peer.on("close", dispose("close"));
-      _peer.on("error", dispose("error"));
-      _peer.on("open", () => {
-        set({ status: "awaiting-peer" });
-        onOpen?.();
-      });
+        const PeerJs = await getPeerJs();
+        _peer = new PeerJs(selfId);
 
-      _peer.on("connection", (c) => {
-        _dataCon = c;
-        _dataCon.on("close", get().backToPeerSelection);
-        _dataCon.on("error", get().backToPeerSelection);
+        const callEnder = () => {
+          if (document.visibilityState === "hidden") {
+            if (get().status === "call-connected") {
+              lpc.endCall(undefined);
+              lpc.backToPeerSelection(undefined);
+            }
+          }
+        };
+
+        const dispose = (cause: string) => () => {
+          // console.log("dispose peer", cause);
+          disposeVideo();
+          _dataCon?.close();
+          set(getInitState());
+        };
+
+        window.addEventListener("visibilitychange", callEnder);
+        window.addEventListener("pagehide", callEnder);
+        document.addEventListener(
+          "click",
+          function enableNoSleep() {
+            document.removeEventListener("click", enableNoSleep, false);
+            getNoSleep().enable();
+          },
+          false
+        );
+
+        _peer.on("disconnected", dispose("disconnected"));
+        _peer.on("close", dispose("close"));
+        _peer.on("error", dispose("error"));
+        _peer.on("open", () => {
+          set({ status: "awaiting-peer" });
+          onOpen?.();
+        });
+
+        _peer.on("connection", (c) => {
+          pipe.send = (e) => c.send(e);
+          _dataCon = c;
+          _dataCon.on("close", () => lpc.backToPeerSelection(undefined));
+          _dataCon.on("error", () => lpc.backToPeerSelection(undefined));
+          _dataCon.on("iceStateChanged", (s) => {
+            if (s === "closed" || s === "failed") {
+              lpc.backToPeerSelection(undefined);
+            }
+          });
+          _dataCon.on("data", (data) => {
+            keepAlive();
+            pipe.receive(data);
+          });
+          set({ status: "connected", peerId: c.peer });
+        });
+        _peer.on("call", (call) => {
+          _peerMediaCon = call;
+          addListeners(_peerMediaCon);
+          set({ status: "select-media", selectMediaVariant: "grantor" });
+        });
+      },
+      connectPeer: () => {
+        const peerId = get().peerId.trim();
+        set({ peerId });
+        if (!peerId) {
+          return;
+        }
+
+        set({ status: "connecting-peer" });
+
+        // reliable means if a message is dropped, it will lock further messages in the pipe
+        // while it is being retried
+        _dataCon = getPeer().connect(peerId, { reliable: false });
+        pipe.send = (e) => _dataCon!.send(e);
+
+        _dataCon.on("open", () => {
+          set({ status: "connected" });
+        });
+        _dataCon.on("error", () => lpc.backToPeerSelection(undefined));
+        _dataCon.on("close", () => lpc.backToPeerSelection(undefined));
+        _dataCon.on("data", (data) => {
+          keepAlive();
+          pipe.receive(data);
+        });
         _dataCon.on("iceStateChanged", (s) => {
           if (s === "closed" || s === "failed") {
-            get().backToPeerSelection();
+            lpc.backToPeerSelection(undefined);
           }
         });
-        _dataCon.on("data", (data) => {
-          get().receive(data as any);
-        });
-        set({ status: "connected", peerId: c.peer });
-      });
-      _peer.on("call", (call) => {
-        _peerMediaCon = call;
-        addListeners(_peerMediaCon);
-        set({ status: "select-media", selectMediaVariant: "grantor" });
-      });
-    },
-    connectPeer: () => {
-      const peerId = get().peerId.trim();
-      set({ peerId });
-      if (!peerId) {
-        return;
-      }
+      },
+      sendMsg: () => {
+        const { msg, selfId, peerId } = get();
+        const e: MsgEvent = {
+          senderId: selfId,
+          createdAt: Date.now(),
+          msg,
+        };
 
-      set({ status: "connecting-peer" });
+        if (!msg) return;
 
-      // reliable means if a message is dropped, it will lock further messages in the pipe
-      // while it is being retried
-      _dataCon = getPeer().connect(peerId, { reliable: false });
-
-      _dataCon.on("open", () => {
-        set({ status: "connected" });
-      });
-      _dataCon.on("error", get().backToPeerSelection);
-      _dataCon.on("close", get().backToPeerSelection);
-      _dataCon.on("data", (data) => {
-        get().receive(data as any);
-      });
-      _dataCon.on("iceStateChanged", (s) => {
-        if (s === "closed" || s === "failed") {
-          get().backToPeerSelection();
+        set((p) => ({ msg: "", msgs: [...p.msgs, e] }));
+        scheduleDispose();
+        rpc.onMsg(e);
+      },
+      sendFile: async (f: File) => {
+        if (
+          // 300MB
+          f.size > 314572800 &&
+          !window.confirm("The file is to large, and it may fail. Continue?")
+        ) {
+          return;
         }
-      });
-    },
-    emit: () => {
-      const { msg, selfId, peerId, receive } = get();
-      const e: MsgEvent = {
-        senderId: selfId,
-        createdAt: Date.now(),
-        msg,
-      };
 
-      if (!msg) return;
-
-      set((p) => ({ msg: "", msgs: [...p.msgs, e] }));
-      scheduleDispose();
-      getDataConn().send(e);
-    },
-    sendFile: async (f: File) => {
-      if (
-        // 300MB
-        f.size > 314572800 &&
-        !window.confirm("The file is to large, and it may fail. Continue?")
-      ) {
-        return;
-      }
-
-      const now = Date.now();
-      const senderId = get().selfId;
-      const fileKey = senderId + now;
-      const unReceivedChunkIndexes = new Set<number>();
-      const chunks = (await chunkFile(f)).reduce((acc, ab, i) => {
-        acc[i] = ab;
-        unReceivedChunkIndexes.add(i);
-        return acc;
-      }, {} as Record<number, ArrayBuffer>);
-      const getNextChunk = () => {
-        const i = unReceivedChunkIndexes.values().next().value;
-        const res = { ab: chunks[i], i };
-        return res.ab ? res : undefined;
-      };
-      blobs[fileKey] = {
-        chunks,
-        receivedBytes: 0,
-        getNextChunk,
-        unReceivedChunkIndexes,
-        meta: {
-          senderId,
-          fileKey,
-          msg: f.name,
-          createdAt: now,
-          fileName: f.name,
-          totalBytes: f.size,
-          totalChunks: unReceivedChunkIndexes.size,
-        },
-      };
-
-      // only send the first chunk, then wait for the peer to acknowledge
-      // otherwise you may break the data connection
-      // because your peer is trying to drink water from a firehose
-      const e: FileEvent = {
-        ...blobs[fileKey].meta,
-        chunkIndex: 0,
-        chunk: chunks[0],
-      };
-      scheduleDispose();
-      getDataConn().send(e);
-      set((p) => ({
-        msgs: [...p.msgs, blobs[fileKey].meta],
-        prog: {
-          ...p.prog,
-          [fileKey]: {
-            msg: `0 / ${pb(f.size)}`,
-            isDone: chunks[0].byteLength === f.size,
+        const now = Date.now();
+        const senderId = get().selfId;
+        const fileKey = senderId + now;
+        const unReceivedChunkIndexes = new Set<number>();
+        const chunks = (await chunkFile(f)).reduce((acc, ab, i) => {
+          acc[i] = ab;
+          unReceivedChunkIndexes.add(i);
+          return acc;
+        }, {} as Record<number, ArrayBuffer>);
+        const getNextChunk = () => {
+          const i = unReceivedChunkIndexes.values().next().value;
+          const res = { ab: chunks[i], i };
+          return res.ab ? res : undefined;
+        };
+        blobs[fileKey] = {
+          chunks,
+          receivedBytes: 0,
+          getNextChunk,
+          unReceivedChunkIndexes,
+          meta: {
+            senderId,
+            fileKey,
+            msg: f.name,
+            createdAt: now,
+            fileName: f.name,
+            totalBytes: f.size,
+            totalChunks: unReceivedChunkIndexes.size,
           },
-        },
-      }));
+        };
+
+        // only send the first chunk, then wait for the peer to acknowledge
+        // otherwise you may break the data connection
+        // because your peer is trying to drink water from a firehose
+        const e: FileEvent = {
+          ...blobs[fileKey].meta,
+          chunkIndex: 0,
+          chunk: chunks[0],
+        };
+        scheduleDispose();
+        rpc.onFile(e);
+        set((p) => ({
+          msgs: [...p.msgs, blobs[fileKey].meta],
+          prog: {
+            ...p.prog,
+            [fileKey]: {
+              msg: `0 / ${pb(f.size)}`,
+              isDone: chunks[0].byteLength === f.size,
+            },
+          },
+        }));
+      },
+      downloadFile: (k: string) => {
+        const { meta, chunks, receivedBytes } = blobs[k];
+        if (!meta.fileName) {
+          alert("file not found");
+          return;
+        }
+
+        if (receivedBytes !== meta.totalBytes) {
+          alert("file still downloading");
+          return;
+        }
+
+        // without a reliable (serial) data connection, dropped packets may have to be retried out of order
+        // the advantage of an un ordered packet retry is that it is non blocking
+        const sortedChunks = Object.entries(chunks)
+          .sort((a, z) => +a[0] - +z[0])
+          .map(([i, ab]) => ab);
+        const url = window.URL.createObjectURL(new Blob(sortedChunks));
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = meta.fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      requestCall: () => {
+        set({ status: "select-media", selectMediaVariant: "requestor" });
+      },
+      connectCall: (ms) => {
+        const { peerId, selectMediaVariant } = get();
+
+        if (!peerId) {
+          throw new Error("cant connect to peer without id");
+        }
+        if (!ms) {
+          lpc.endCall(undefined);
+          return;
+        }
+
+        _selfMediaStream = ms;
+
+        if (selectMediaVariant === "requestor") {
+          set({ status: "calling-peer" });
+          _peerMediaCon = getPeer().call(peerId, ms);
+          addListeners(_peerMediaCon);
+          return;
+        }
+
+        if (selectMediaVariant === "grantor") {
+          if (!_peerMediaCon) {
+            lpc.endCall(undefined);
+            return;
+          }
+          _peerMediaCon.answer(ms);
+          return;
+        }
+      },
+      endCall: () => {
+        disposeVideo();
+        rpc.endCall(undefined);
+        set({ status: "connected" });
+      },
     },
-    downloadFile: (k: string) => {
-      const { meta, chunks, receivedBytes } = blobs[k];
-      if (!meta.fileName) {
-        alert("file not found");
-        return;
-      }
+    rpcs: {
+      keepAlive: async () => {
+        return {};
+      },
+      endCall: async () => {
+        disposeVideo();
+        set({ status: "connected" });
+        return {};
+      },
+      onPeerType: async () => {
+        connectionStore.set({ isPeerTyping: true });
+        onPeerType();
+        return {};
+      },
+      acknowledgeChunk: async (ev) => {
+        const b = blobs[ev.fileKey];
+        if (!b) {
+          alert("missing chunks for file " + ev.fileKey);
+          return {};
+        }
+        b.unReceivedChunkIndexes.delete(ev.chunkIndexReceived);
+        b.receivedBytes = ev.bytesReceived;
+        updateProgress(ev.fileKey);
+        const nextChunk = b.getNextChunk();
+        if (!nextChunk) {
+          return {};
+        }
+        const e: FileEvent = {
+          ...b.meta,
+          chunkIndex: nextChunk.i,
+          chunk: nextChunk.ab,
+        };
+        rpc.onFile(e);
 
-      if (receivedBytes !== meta.totalBytes) {
-        alert("file still downloading");
-        return;
-      }
-
-      // without a reliable (serial) data connection, dropped packets may have to be retried out of order
-      // the advantage of an un ordered packet retry is that it is non blocking
-      const sortedChunks = Object.entries(chunks)
-        .sort((a, z) => +a[0] - +z[0])
-        .map(([i, ab]) => ab);
-      const url = window.URL.createObjectURL(new Blob(sortedChunks));
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = meta.fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
-    receive: (ev) => {
-      if (isRpc(ev)) {
-        const { rpc } = ev;
-        ((): void => {
-          keepAlive();
-          if (rpc === "keep-alive") {
-            return;
-          }
-          if (rpc === "end-call") {
-            disposeVideo();
-            set({ status: "connected" });
-            return;
-          }
-          if (rpc === "on-peer-type") {
-            connectionStore.setState({ isPeerTyping: true });
-            onPeerType();
-            return;
-          }
-          if (rpc === "acknowledge-chunk") {
-            const b = blobs[ev.fileKey];
-            if (!b) {
-              alert("missing chunks for file " + ev.fileKey);
-              return;
-            }
-            b.unReceivedChunkIndexes.delete(ev.chunkIndexReceived);
-            b.receivedBytes = ev.bytesReceived;
-            updateProgress(ev.fileKey);
-            const nextChunk = b.getNextChunk();
-            if (!nextChunk) {
-              return;
-            }
-            const e: FileEvent = {
-              ...b.meta,
-              chunkIndex: nextChunk.i,
-              chunk: nextChunk.ab,
-            };
-            getDataConn().send(e);
-
-            const condition = () => b.unReceivedChunkIndexes.has(e.chunkIndex);
-            const operation = () => getDataConn().send(e);
-            const send = withRetry(operation, condition);
-            send().catch(() => console.log('failed to send chunk', e))
-
-            return;
-          }
-          return rpc;
-        })();
-        return;
-      }
-
-      if (isFileEvent(ev)) {
-        const ka: RPC = { rpc: "keep-alive" };
-        _dataCon?.send(ka);
+        const condition = () => b.unReceivedChunkIndexes.has(e.chunkIndex);
+        const operation = async () => {
+          await rpc.onFile(e);
+        };
+        const send = withRetry(operation, condition);
+        send().catch(() => console.log("failed to send chunk", e));
+        return {};
+      },
+      onFile: async (ev) => {
         const acknowledgeChunk = () => {
-          const rpc: RPC = {
-            rpc: "acknowledge-chunk",
+          rpc.acknowledgeChunk({
             chunkIndexReceived: ev.chunkIndex,
             fileKey: ev.fileKey,
             bytesReceived: blobs[ev.fileKey].receivedBytes,
-          };
-          _dataCon?.send(rpc);
+          });
         };
         // first chunk
         if (!blobs[ev.fileKey]) {
@@ -601,7 +628,7 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
           }));
 
           acknowledgeChunk();
-          return;
+          return {};
         }
 
         // next chunk
@@ -617,56 +644,25 @@ export const connectionStore = create<ConnectionState & ConnectionActions>(
         );
         updateProgress(ev.fileKey);
         acknowledgeChunk();
-        return;
-      }
-
-      if (isMsgEvent(ev)) {
-        const ka: RPC = { rpc: "keep-alive" };
-        _dataCon?.send(ka);
+        return {};
+      },
+      onMsg: async (ev) => {
         set((p) => ({
           msgs: [...p.msgs, ev],
         }));
-      }
-    },
-    endCall: () => {
-      disposeVideo();
-      const e: RPC = { rpc: "end-call" };
-      _dataCon?.send(e);
-      set({ status: "connected" });
-    },
-    requestCall: () => {
-      set({ status: "select-media", selectMediaVariant: "requestor" });
-    },
-    connectCall: (ms) => {
-      const { peerId, selectMediaVariant } = get();
-
-      if (!peerId) {
-        throw new Error("cant connect to peer without id");
-      }
-      if (!ms) {
-        get().endCall();
-        return;
-      }
-
-      _selfMediaStream = ms;
-
-      if (selectMediaVariant === "requestor") {
-        set({ status: "calling-peer" });
-        _peerMediaCon = getPeer().call(peerId, ms);
-        addListeners(_peerMediaCon);
-        return;
-      }
-
-      if (selectMediaVariant === "grantor") {
-        if (!_peerMediaCon) {
-          get().endCall();
-          return;
-        }
-        _peerMediaCon.answer(ms);
-        return;
-      }
+        return {};
+      },
     },
   })
 );
 
-export const connectionActions = connectionStore.getState();
+export const useStore = <T>(
+  selector: (state: State) => T
+) => {
+  return useSyncExternalStoreWithSelector(
+    connectionStore.sub as any,
+    connectionStore.get,
+    connectionStore.get,
+    selector,
+  )
+};

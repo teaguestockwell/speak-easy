@@ -1,4 +1,4 @@
-import { connectionStore } from "./connection-store";
+import { connectionStore, useStore } from "./connection-store";
 import { Button } from "../../components";
 import cn from "./media-picker.module.css";
 
@@ -10,10 +10,10 @@ const variants = [
   "Cancel",
 ] as const;
 
-type V = typeof variants[number];
+type V = (typeof variants)[number];
 
 const onSelect = (v: V) => async () => {
-  const s = connectionStore.getState();
+  const s = connectionStore.get();
   const { mediaDevices } = window.navigator;
   let ms: MediaStream | undefined;
   const constraints: MediaTrackConstraints = {
@@ -74,9 +74,9 @@ const onSelect = (v: V) => async () => {
       );
     }
 
-    s.connectCall(ms);
+    connectionStore.lpc.connectCall(ms);
   } catch {
-    s.connectCall(ms);
+    connectionStore.lpc.connectCall(ms);
   }
 };
 
@@ -90,8 +90,8 @@ const supported = variants.filter((e) =>
 );
 
 export const MediaPicker = () => {
-  const status = connectionStore((s) => s.status);
-  const { selectMediaVariant } = connectionStore.getState();
+  const status = useStore((s) => s.status);
+  const { selectMediaVariant } = connectionStore.get();
   const action = selectMediaVariant === "grantor" ? "accept" : "place";
   const title = `Choose media to ${action} call`;
 
