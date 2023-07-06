@@ -1,86 +1,28 @@
 import type { Peer, DataConnection, MediaConnection } from "peerjs";
 import humanid from "human-id";
 import deb from "lodash/debounce";
-import throttle from "lodash/throttle";
-import { chunkFile } from "./chunk-file";
 import _pb from "pretty-bytes";
 import NoSleep from "nosleep.js";
 import { create } from "udp-rpc-bridge";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 
-const withRetry = (
-  operation: () => Promise<void> | void,
-  condition: () => boolean,
-  timeout = 15000
-) => {
-  let ms = 500;
-  let waited = 0;
-  return async () => {
-    while (waited < timeout) {
-      if (condition()) {
-        return;
-      }
-      await operation();
-      await new Promise((res) => setTimeout(res, ms));
-      waited += ms;
-      ms *= 2;
-    }
-    throw new Error("timeout exceeded for: " + operation.name);
-  };
-};
+const chunkSize = 1024 * 64;
 
 const pb = (b: number) => {
   return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
 
-type TextEvent = {
-  senderId: string;
-  createdAt: number;
-  msg: string;
-};
-
-export type FileEvent = TextEvent & {
-  fileKey: string;
-  fileName: string;
-  chunk: ArrayBuffer;
-  chunkIndex: number;
-  totalBytes: number;
-  totalChunks: number;
-};
-export type MsgEvent = FileEvent | TextEvent;
-
-type RPC =
-  | {
-      rpc: "acknowledge-chunk";
-      fileKey: string;
-      chunkIndexReceived: number;
-      bytesReceived: number;
-    }
-  | {
-      rpc: "on-peer-type";
-    }
-  | {
-      rpc: "keep-alive";
-    }
-  | {
-      rpc: "end-call";
-    };
-
-const blobs: {
-  [k: string]: {
-    meta: Omit<FileEvent, "chunk" | "chunkIndex">;
-    chunks: Record<number, ArrayBuffer>;
-    unReceivedChunkIndexes: Set<number>;
-    receivedBytes: number;
-    getNextChunk: () => { ab: ArrayBuffer; i: number } | void;
-  };
-} = {};
-
 type State = {
   selfId: string;
   peerId: string;
   msg: string;
-  msgs: MsgEvent[];
+  msgs: {
+    senderId: string;
+    createdAt: number;
+    msg: string;
+    fileKey?: string;
+    fileName?: string;
+  }[];
   status:
     | "enter-self-id"
     | "connecting-self"
@@ -91,9 +33,20 @@ type State = {
     | "calling-peer"
     | "call-connected";
   isPeerTyping: boolean;
-  prog: { [fileKey: string]: { msg: string; isDone: boolean } };
   selectMediaVariant: "requestor" | "grantor";
+  files: {
+    [id: string]: {
+      left: number;
+      right: number;
+      file: File | null;
+    };
+  };
+  fileProgress: {
+    [id: string]: { percent: number; msg: string; updatedAt: number };
+  };
 };
+
+export type Msg = State["msgs"][number];
 
 const getInitState = (): State => ({
   selfId: humanid(" ").toLowerCase(),
@@ -102,8 +55,9 @@ const getInitState = (): State => ({
   msgs: [],
   status: "enter-self-id",
   isPeerTyping: false,
-  prog: {},
   selectMediaVariant: "requestor",
+  files: {},
+  fileProgress: {},
 });
 
 type Lpcs = {
@@ -121,19 +75,26 @@ type Lpcs = {
   requestCall: () => void;
   connectCall: (m: MediaStream | undefined) => void;
   endCall: () => void;
+  setFileProgress: (id: string) => void;
 };
 
 type RPCs = {
   keepAlive: () => Promise<{}>;
   endCall: () => Promise<{}>;
   onPeerType: () => Promise<{}>;
-  acknowledgeChunk: (e: {
-    fileKey: string;
-    chunkIndexReceived: number;
-    bytesReceived: number;
-  }) => Promise<{}>;
-  onFile: (e: FileEvent) => Promise<{}>;
-  onMsg: (e: MsgEvent) => Promise<{}>;
+  onMsg: (e: State["msgs"][number]) => Promise<{}>;
+  getChunk: (arg: {
+    id: string;
+    left: number;
+    right: number;
+  }) => Promise<
+    { status: 200; data: ArrayBuffer } | { status: 400 } | { status: 404 }
+  >;
+  putFileMetadata: (metadata: {
+    id: string;
+    name: string;
+    bytes: number;
+  }) => Promise<{ status: 200 } | { status: 429 }>;
 };
 
 let _peer: Peer | undefined;
@@ -227,39 +188,6 @@ const cleanId = (s: string) => {
     .map((c) => (omitted.has(c) ? "" : c))
     .join("")
     .replace(/\s+/g, " ");
-};
-
-// dont call this with the final progress event because it may be discarded
-const throttledProgress = throttle(
-  (k: string, received: number, total: number) => {
-    connectionStore.set((p) => ({
-      prog: {
-        ...p.prog,
-        [k]: {
-          msg: `${pb(received)} / ${pb(total)}`,
-          isDone: false,
-        },
-      },
-    }));
-  }
-);
-
-const updateProgress = (k: string) => {
-  const received = blobs[k].receivedBytes;
-  const total = blobs[k].meta.totalBytes;
-  if (received !== total) {
-    throttledProgress(k, received, total);
-    return;
-  }
-  connectionStore.set((p) => ({
-    prog: {
-      ...p.prog,
-      [k]: {
-        msg: `${pb(received)} / ${pb(total)}`,
-        isDone: true,
-      },
-    },
-  }));
 };
 
 const addListeners = (peerCon: MediaConnection) => {
@@ -406,7 +334,7 @@ export const connectionStore = create<RPCs, State, Lpcs>(
       },
       sendMsg: () => {
         const { msg, selfId, peerId } = get();
-        const e: MsgEvent = {
+        const e = {
           senderId: selfId,
           createdAt: Date.now(),
           msg,
@@ -418,88 +346,62 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         scheduleDispose();
         rpc.onMsg(e);
       },
-      sendFile: async (f: File) => {
+      sendFile: async (file: File) => {
         if (
           // 300MB
-          f.size > 314572800 &&
+          file.size > 314572800 &&
           !window.confirm("The file is to large, and it may fail. Continue?")
         ) {
           return;
         }
-
         const now = Date.now();
         const senderId = get().selfId;
-        const fileKey = senderId + now;
-        const unReceivedChunkIndexes = new Set<number>();
-        const chunks = (await chunkFile(f)).reduce((acc, ab, i) => {
-          acc[i] = ab;
-          unReceivedChunkIndexes.add(i);
-          return acc;
-        }, {} as Record<number, ArrayBuffer>);
-        const getNextChunk = () => {
-          const i = unReceivedChunkIndexes.values().next().value;
-          const res = { ab: chunks[i], i };
-          return res.ab ? res : undefined;
-        };
-        blobs[fileKey] = {
-          chunks,
-          receivedBytes: 0,
-          getNextChunk,
-          unReceivedChunkIndexes,
-          meta: {
-            senderId,
-            fileKey,
-            msg: f.name,
-            createdAt: now,
-            fileName: f.name,
-            totalBytes: f.size,
-            totalChunks: unReceivedChunkIndexes.size,
-          },
-        };
-
-        // only send the first chunk, then wait for the peer to acknowledge
-        // otherwise you may break the data connection
-        // because your peer is trying to drink water from a firehose
-        const e: FileEvent = {
-          ...blobs[fileKey].meta,
-          chunkIndex: 0,
-          chunk: chunks[0],
+        const id = senderId + now;
+        get().files[id] = {
+          left: 0,
+          right: file.size,
+          file,
         };
         scheduleDispose();
-        rpc.onFile(e);
+        const msg = {
+          senderId,
+          fileKey: id,
+          msg: file.name,
+          createdAt: now,
+          fileName: file.name,
+        };
         set((p) => ({
-          msgs: [...p.msgs, blobs[fileKey].meta],
-          prog: {
-            ...p.prog,
-            [fileKey]: {
-              msg: `0 / ${pb(f.size)}`,
-              isDone: chunks[0].byteLength === f.size,
-            },
-          },
+          msgs: [...p.msgs, msg],
         }));
+        await rpc.onMsg(msg);
+        const res = await rpc.putFileMetadata({
+          id,
+          bytes: file.size,
+          name: file.name,
+        });
+        if (res.status === 200) {
+          get().files[id].left = get().files[id].right;
+          lpc.setFileProgress(id);
+        }
       },
       downloadFile: (k: string) => {
-        const { meta, chunks, receivedBytes } = blobs[k];
-        if (!meta.fileName) {
+        const { files } = get();
+        const file = files[k];
+        if (!file || !file.file) {
           alert("file not found");
           return;
         }
 
-        if (receivedBytes !== meta.totalBytes) {
+        if (file.left !== file.right) {
           alert("file still downloading");
           return;
         }
 
-        // without a reliable (serial) data connection, dropped packets may have to be retried out of order
-        // the advantage of an un ordered packet retry is that it is non blocking
-        const sortedChunks = Object.entries(chunks)
-          .sort((a, z) => +a[0] - +z[0])
-          .map(([i, ab]) => ab);
-        const url = window.URL.createObjectURL(new Blob(sortedChunks));
+        const url = window.URL.createObjectURL(file.file);
         const a = document.createElement("a");
         a.style.display = "none";
         a.href = url;
-        a.download = meta.fileName;
+        a.download = file.file.name;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -541,8 +443,71 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         rpc.endCall(undefined);
         set({ status: "connected" });
       },
+      setFileProgress: (id) => {
+        const meta = get().files[id];
+        if (!meta) return;
+        const lastUpdated = get().fileProgress[id]?.updatedAt ?? 0;
+        const percent = meta.left / meta.right;
+        if (percent !== 1 && Date.now() - lastUpdated < 200) return;
+        const msg = `${pb(meta.left)} / ${pb(meta.right)}`;
+        set((prev) => ({
+          fileProgress: {
+            ...prev.fileProgress,
+            [id]: { percent, msg, updatedAt: Date.now() },
+          },
+        }));
+      },
     },
     rpcs: {
+      getChunk: ({ id, left, right }) => {
+        return new Promise((resolve) => {
+          const f = get().files[id];
+          if (!f || !f.file) {
+            resolve({ status: 404 });
+          }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const chunk = e?.target?.result;
+            if (!chunk) {
+              resolve({ status: 400 });
+            }
+            // assuming there is only one peer that reads in order
+            f.left = left;
+            lpc.setFileProgress(id);
+            resolve({ status: 200, data: chunk as ArrayBuffer });
+          };
+          reader.readAsArrayBuffer(f.file!.slice(left, right));
+        });
+      },
+      putFileMetadata: async ({ id, bytes, name }) => {
+        const f = {
+          left: 0,
+          right: bytes,
+          file: null as null | File,
+        };
+        get().files[id] = f;
+        lpc.setFileProgress(id);
+        let retryCount = 0;
+        const chunks: ArrayBuffer[] = [];
+        while (f.left !== f.right) {
+          if (retryCount > 30) {
+            return { status: 429 };
+          }
+          const until = Math.min(f.left + chunkSize, f.right);
+          const res = await rpc.getChunk({ id, left: f.left, right: until });
+          if (res.status !== 200) {
+            await new Promise((r) => setTimeout(r, 500));
+            continue;
+          }
+          f.left = until;
+          chunks.push(res.data);
+          if (f.left === f.right) {
+            f.file = new File(chunks, name);
+          }
+          lpc.setFileProgress(id);
+        }
+        return { status: 200 };
+      },
       keepAlive: async () => {
         return {};
       },
@@ -556,97 +521,8 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         onPeerType();
         return {};
       },
-      acknowledgeChunk: async (ev) => {
-        const b = blobs[ev.fileKey];
-        if (!b) {
-          alert("missing chunks for file " + ev.fileKey);
-          return {};
-        }
-        b.unReceivedChunkIndexes.delete(ev.chunkIndexReceived);
-        b.receivedBytes = ev.bytesReceived;
-        updateProgress(ev.fileKey);
-        const nextChunk = b.getNextChunk();
-        if (!nextChunk) {
-          return {};
-        }
-        const e: FileEvent = {
-          ...b.meta,
-          chunkIndex: nextChunk.i,
-          chunk: nextChunk.ab,
-        };
-        rpc.onFile(e);
-
-        const condition = () => b.unReceivedChunkIndexes.has(e.chunkIndex);
-        const operation = async () => {
-          await rpc.onFile(e);
-        };
-        const send = withRetry(operation, condition);
-        send().catch(() => console.log("failed to send chunk", e));
-        return {};
-      },
-      onFile: async (ev) => {
-        const acknowledgeChunk = () => {
-          rpc.acknowledgeChunk({
-            chunkIndexReceived: ev.chunkIndex,
-            fileKey: ev.fileKey,
-            bytesReceived: blobs[ev.fileKey].receivedBytes,
-          });
-        };
-        // first chunk
-        if (!blobs[ev.fileKey]) {
-          const { chunk, chunkIndex, ...rest } = ev;
-          const meta = rest;
-          const chunks = { [chunkIndex]: chunk };
-
-          blobs[ev.fileKey] = {
-            meta,
-            chunks,
-            unReceivedChunkIndexes: (() => {
-              const res = new Set<number>();
-              for (let i = 0; i < ev.totalChunks; i++) {
-                res.add(i);
-              }
-              res.delete(ev.chunkIndex);
-              return res;
-            })(),
-            // the recipient will never know what chunks its missing, thats up to the sender
-            getNextChunk: () => {},
-            receivedBytes: chunk.byteLength,
-          };
-
-          set((p) => ({
-            msgs: [...p.msgs, blobs[ev.fileKey!].meta],
-            prog: {
-              ...p.prog,
-              [ev.fileKey!]: {
-                msg: `${pb(ev.chunk?.byteLength ?? 0)} / ${pb(
-                  ev.totalBytes ?? 0
-                )}`,
-                isDone: ev.chunk?.byteLength === ev.totalBytes,
-              },
-            },
-          }));
-
-          acknowledgeChunk();
-          return {};
-        }
-
-        // next chunk
-        blobs[ev.fileKey].chunks[ev.chunkIndex] = ev.chunk;
-        blobs[ev.fileKey].unReceivedChunkIndexes.delete(ev.chunkIndex);
-        const chunksReceived =
-          ev.totalChunks - blobs[ev.fileKey].unReceivedChunkIndexes.size;
-        const apxReceivedSize =
-          chunksReceived * blobs[ev.fileKey].chunks[0].byteLength;
-        blobs[ev.fileKey].receivedBytes = Math.min(
-          apxReceivedSize,
-          ev.totalBytes
-        );
-        updateProgress(ev.fileKey);
-        acknowledgeChunk();
-        return {};
-      },
       onMsg: async (ev) => {
+        onPeerType.flush();
         set((p) => ({
           msgs: [...p.msgs, ev],
         }));
@@ -656,13 +532,11 @@ export const connectionStore = create<RPCs, State, Lpcs>(
   })
 );
 
-export const useStore = <T>(
-  selector: (state: State) => T
-) => {
+export const useStore = <T>(selector: (state: State) => T) => {
   return useSyncExternalStoreWithSelector(
     connectionStore.sub as any,
     connectionStore.get,
     connectionStore.get,
-    selector,
-  )
+    selector
+  );
 };

@@ -6,17 +6,17 @@ import {
   getSelfMediaStream,
   getPeerMediaStream,
   useStore,
-  MsgEvent,
-  FileEvent,
+  Msg,
 } from "./connection-store";
 import cn from "./content.module.css";
 import { QrCode } from "../../components/qr-code";
 import { copyTextToClipboard } from "./copy-to-clipboard";
 import { Icon } from "../../components/icon";
 
-const ConnectedChatBubble = (p: MsgEvent) => {
+const ConnectedChatBubble = (p: Msg) => {
   const { selfId } = connectionStore.get();
-  const prog = useStore((s) => s.prog[(p as FileEvent).fileKey ?? ""]);
+  const prog = useStore((s) => s.fileProgress[p.fileKey ?? ""]);
+  const isDone = prog?.percent === 1;
 
   return (
     <ChatBubble
@@ -25,9 +25,7 @@ const ConnectedChatBubble = (p: MsgEvent) => {
       msg={prog ? p.msg + "\n" + prog.msg : p.msg}
       createdAt={p.createdAt}
       downloadFile={
-        prog?.isDone
-          ? () => connectionStore.lpc.downloadFile((p as FileEvent).fileKey!)
-          : undefined
+        isDone ? () => connectionStore.lpc.downloadFile(p.fileKey!) : undefined
       }
     />
   );
