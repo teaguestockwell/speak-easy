@@ -59,10 +59,10 @@ export type Lpcs = {
 };
 
 export type RPCs = {
-  keepAlive: () => Promise<{}>;
-  endCall: () => Promise<{}>;
-  onPeerType: () => Promise<{}>;
-  onMsg: (e: State["msgs"][number]) => Promise<{}>;
+  keepAlive: () => Promise<void>;
+  endCall: () => Promise<void>;
+  onPeerType: () => Promise<void>;
+  onMsg: (e: State["msgs"][number]) => Promise<void>;
   getChunk: (arg: {
     id: string;
     left: number;
@@ -152,7 +152,7 @@ const scheduleDispose = () => {
   keepAlive();
   disposeTimeout = setTimeout(() => {
     disposeVideo();
-    connectionStore.lpc.backToPeerSelection(undefined);
+    connectionStore.lpc.backToPeerSelection();
   }, 2000);
 };
 
@@ -172,7 +172,7 @@ const cleanId = (s: string) => {
 };
 
 const addListeners = (peerCon: MediaConnection) => {
-  const endCall = () => connectionStore.lpc.endCall(undefined);
+  const endCall = () => connectionStore.lpc.endCall();
   peerCon.on("error", endCall);
   peerCon.on("close", endCall);
   peerCon.on("iceStateChanged", (s) => {
@@ -197,11 +197,11 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         });
 
         lpc.publishToBroker(() => {
-          lpc.connectPeer(undefined);
+          lpc.connectPeer();
         });
       },
       dispose: () => {
-        lpc.endCall(undefined);
+        lpc.endCall();
         set(getInitState());
       },
       backToPeerSelection: () => {
@@ -213,7 +213,7 @@ export const connectionStore = create<RPCs, State, Lpcs>(
       setPeerId: (e) => set({ peerId: cleanId(e.target.value) }),
       setMsg: (e) => {
         set({ msg: e.target.value });
-        rpc.onPeerType(undefined);
+        rpc.onPeerType();
       },
       publishToBroker: async (onOpen) => {
         const selfId = get().selfId.trim();
@@ -230,8 +230,8 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         const callEnder = () => {
           if (document.visibilityState === "hidden") {
             if (get().status === "call-connected") {
-              lpc.endCall(undefined);
-              lpc.backToPeerSelection(undefined);
+              lpc.endCall();
+              lpc.backToPeerSelection();
             }
           }
         };
@@ -264,11 +264,11 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         _peer.on("connection", (c) => {
           pipe.send = (e) => c.send(e);
           _dataCon = c;
-          _dataCon.on("close", () => lpc.backToPeerSelection(undefined));
-          _dataCon.on("error", () => lpc.backToPeerSelection(undefined));
+          _dataCon.on("close", () => lpc.backToPeerSelection());
+          _dataCon.on("error", () => lpc.backToPeerSelection());
           _dataCon.on("iceStateChanged", (s) => {
             if (s === "closed" || s === "failed") {
-              lpc.backToPeerSelection(undefined);
+              lpc.backToPeerSelection();
             }
           });
           _dataCon.on("data", (data) => {
@@ -300,15 +300,15 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         _dataCon.on("open", () => {
           set({ status: "connected" });
         });
-        _dataCon.on("error", () => lpc.backToPeerSelection(undefined));
-        _dataCon.on("close", () => lpc.backToPeerSelection(undefined));
+        _dataCon.on("error", () => lpc.backToPeerSelection());
+        _dataCon.on("close", () => lpc.backToPeerSelection());
         _dataCon.on("data", (data) => {
           keepAlive();
           pipe.receive(data);
         });
         _dataCon.on("iceStateChanged", (s) => {
           if (s === "closed" || s === "failed") {
-            lpc.backToPeerSelection(undefined);
+            lpc.backToPeerSelection();
           }
         });
       },
@@ -396,7 +396,7 @@ export const connectionStore = create<RPCs, State, Lpcs>(
           throw new Error("cant connect to peer without id");
         }
         if (!ms) {
-          lpc.endCall(undefined);
+          lpc.endCall();
           return;
         }
 
@@ -411,7 +411,7 @@ export const connectionStore = create<RPCs, State, Lpcs>(
 
         if (selectMediaVariant === "grantor") {
           if (!_peerMediaCon) {
-            lpc.endCall(undefined);
+            lpc.endCall();
             return;
           }
           _peerMediaCon.answer(ms);
@@ -420,7 +420,7 @@ export const connectionStore = create<RPCs, State, Lpcs>(
       },
       endCall: () => {
         disposeVideo();
-        rpc.endCall(undefined);
+        rpc.endCall();
         set({ status: "connected" });
       },
       setFileProgress: (id) => {
@@ -488,25 +488,20 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         }
         return { status: 200 };
       },
-      keepAlive: async () => {
-        return {};
-      },
+      keepAlive: async () => {},
       endCall: async () => {
         disposeVideo();
         set({ status: "connected" });
-        return {};
       },
       onPeerType: async () => {
         connectionStore.set({ isPeerTyping: true });
         onPeerType();
-        return {};
       },
       onMsg: async (ev) => {
         onPeerType.flush();
         set((p) => ({
           msgs: [...p.msgs, ev],
         }));
-        return {};
       },
     },
   })
