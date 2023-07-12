@@ -6,23 +6,12 @@ import NoSleep from "nosleep.js";
 import { create } from "udp-rpc-bridge";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 
-const chunkSize = 1024 * 64;
-
-const pb = (b: number) => {
-  return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-};
-
-type State = {
+export type State = {
   selfId: string;
   peerId: string;
   msg: string;
-  msgs: {
-    senderId: string;
-    createdAt: number;
-    msg: string;
-    fileKey?: string;
-    fileName?: string;
-  }[];
+  isPeerTyping: boolean;
+  selectMediaVariant: "requestor" | "grantor";
   status:
     | "enter-self-id"
     | "connecting-self"
@@ -32,8 +21,13 @@ type State = {
     | "select-media"
     | "calling-peer"
     | "call-connected";
-  isPeerTyping: boolean;
-  selectMediaVariant: "requestor" | "grantor";
+  msgs: {
+    senderId: string;
+    createdAt: number;
+    msg: string;
+    fileKey?: string;
+    fileName?: string;
+  }[];
   files: {
     [id: string]: {
       left: number;
@@ -46,21 +40,7 @@ type State = {
   };
 };
 
-export type Msg = State["msgs"][number];
-
-const getInitState = (): State => ({
-  selfId: humanid(" ").toLowerCase(),
-  peerId: "",
-  msg: "",
-  msgs: [],
-  status: "enter-self-id",
-  isPeerTyping: false,
-  selectMediaVariant: "requestor",
-  files: {},
-  fileProgress: {},
-});
-
-type Lpcs = {
+export type Lpcs = {
   setSelfId: (e: { target: { value: string } }) => void;
   setPeerId: (e: { target: { value: string } }) => void;
   setMsg: (e: { target: { value: string } }) => void;
@@ -78,7 +58,7 @@ type Lpcs = {
   setFileProgress: (id: string) => void;
 };
 
-type RPCs = {
+export type RPCs = {
   keepAlive: () => Promise<{}>;
   endCall: () => Promise<{}>;
   onPeerType: () => Promise<{}>;
@@ -95,6 +75,38 @@ type RPCs = {
     name: string;
     bytes: number;
   }) => Promise<{ status: 200 } | { status: 429 }>;
+};
+
+const getInitState = (): State => ({
+  selfId: humanid(" ").toLowerCase(),
+  peerId: "",
+  msg: "",
+  msgs: [],
+  status: "enter-self-id",
+  isPeerTyping: false,
+  selectMediaVariant: "requestor",
+  files: {},
+  fileProgress: {},
+});
+
+const chunkSize = 1024 * 64;
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+const withGetAwaitedTruthy =
+  <T>(t: T) =>
+  async (): Promise<T> => {
+    if (t) return t;
+    await sleep(200);
+    if (t) return t;
+    await sleep(1000);
+    if (t) return t;
+    await sleep(2000);
+    return t;
+  };
+
+const pb = (b: number) => {
+  return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
 
 let _peer: Peer | undefined;
@@ -125,39 +137,8 @@ const getPeer = () => {
   return _peer;
 };
 
-const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-export const getSelfMediaStream = async () => {
-  if (_selfMediaStream) {
-    return _selfMediaStream;
-  }
-  await sleep(200);
-  if (_selfMediaStream) {
-    return _selfMediaStream;
-  }
-  await sleep(1000);
-  if (_selfMediaStream) {
-    return _selfMediaStream;
-  }
-  await sleep(2000);
-  return _selfMediaStream;
-};
-
-export const getPeerMediaStream = async () => {
-  if (_peerMediaStream) {
-    return _peerMediaStream;
-  }
-  await sleep(200);
-  if (_peerMediaStream) {
-    return _peerMediaStream;
-  }
-  await sleep(1000);
-  if (_peerMediaStream) {
-    return _peerMediaStream;
-  }
-  await sleep(2000);
-  return _peerMediaStream;
-};
+export const getSelfMediaStream = withGetAwaitedTruthy(_selfMediaStream);
+export const getPeerMediaStream = withGetAwaitedTruthy(_peerMediaStream);
 
 const disposeVideo = () => {
   _selfMediaStream?.getTracks().forEach((t) => t.stop());
@@ -256,7 +237,6 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         };
 
         const dispose = (cause: string) => () => {
-          // console.log("dispose peer", cause);
           disposeVideo();
           _dataCon?.close();
           set(getInitState());

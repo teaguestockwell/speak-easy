@@ -6,14 +6,14 @@ import {
   getSelfMediaStream,
   getPeerMediaStream,
   useStore,
-  Msg,
+  State,
 } from "./connection-store";
 import cn from "./content.module.css";
 import { QrCode } from "../../components/qr-code";
 import { copyTextToClipboard } from "./copy-to-clipboard";
 import { Icon } from "../../components/icon";
 
-const ConnectedChatBubble = (p: Msg) => {
+const ConnectedChatBubble = (p: State["msgs"][number]) => {
   const { selfId } = connectionStore.get();
   const prog = useStore((s) => s.fileProgress[p.fileKey ?? ""]);
   const isDone = prog?.percent === 1;
