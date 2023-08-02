@@ -93,6 +93,23 @@ const chunkSize = 1024 * 64;
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+/**
+ * passing in t directly creates new references
+ * this is problematic when t is reassigned
+ * instead use a getter
+ */
+const withGetAwaitedTruthy =
+  <T>(getT: () => T) =>
+  async (): Promise<T> => {
+    if (getT()) return getT();
+    await sleep(200);
+    if (getT()) return getT();
+    await sleep(1000);
+    if (getT()) return getT();
+    await sleep(2000);
+    return getT();
+  };
+
 const pb = (b: number) => {
   return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
@@ -125,40 +142,8 @@ const getPeer = () => {
   return _peer;
 };
 
-/**
- * dont refactor this code, it will break the video stream
- * todo: figure out why this works, but the previous commit didn't
- */
-export const getSelfMediaStream = async () => {
-  if (_selfMediaStream) {
-    return _selfMediaStream;
-  }
-  await sleep(200);
-  if (_selfMediaStream) {
-    return _selfMediaStream;
-  }
-  await sleep(1000);
-  if (_selfMediaStream) {
-    return _selfMediaStream;
-  }
-  await sleep(2000);
-  return _selfMediaStream;
-};
-export const getPeerMediaStream = async () => {
-  if (_peerMediaStream) {
-    return _peerMediaStream;
-  }
-  await sleep(200);
-  if (_peerMediaStream) {
-    return _peerMediaStream;
-  }
-  await sleep(1000);
-  if (_peerMediaStream) {
-    return _peerMediaStream;
-  }
-  await sleep(2000);
-  return _peerMediaStream;
-};
+export const getSelfMediaStream = withGetAwaitedTruthy(() => _selfMediaStream);
+export const getPeerMediaStream = withGetAwaitedTruthy(() => _peerMediaStream);
 
 const disposeVideo = () => {
   _selfMediaStream?.getTracks().forEach((t) => t.stop());
