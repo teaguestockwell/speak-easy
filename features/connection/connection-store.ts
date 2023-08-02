@@ -93,18 +93,6 @@ const chunkSize = 1024 * 64;
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-const withGetAwaitedTruthy =
-  <T>(t: T) =>
-  async (): Promise<T> => {
-    if (t) return t;
-    await sleep(200);
-    if (t) return t;
-    await sleep(1000);
-    if (t) return t;
-    await sleep(2000);
-    return t;
-  };
-
 const pb = (b: number) => {
   return _pb(b, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
@@ -137,8 +125,40 @@ const getPeer = () => {
   return _peer;
 };
 
-export const getSelfMediaStream = withGetAwaitedTruthy(_selfMediaStream);
-export const getPeerMediaStream = withGetAwaitedTruthy(_peerMediaStream);
+/**
+ * dont refactor this code, it will break the video stream
+ * todo: figure out why this works, but the previous commit didn't
+ */
+export const getSelfMediaStream = async () => {
+  if (_selfMediaStream) {
+    return _selfMediaStream;
+  }
+  await sleep(200);
+  if (_selfMediaStream) {
+    return _selfMediaStream;
+  }
+  await sleep(1000);
+  if (_selfMediaStream) {
+    return _selfMediaStream;
+  }
+  await sleep(2000);
+  return _selfMediaStream;
+};
+export const getPeerMediaStream = async () => {
+  if (_peerMediaStream) {
+    return _peerMediaStream;
+  }
+  await sleep(200);
+  if (_peerMediaStream) {
+    return _peerMediaStream;
+  }
+  await sleep(1000);
+  if (_peerMediaStream) {
+    return _peerMediaStream;
+  }
+  await sleep(2000);
+  return _peerMediaStream;
+};
 
 const disposeVideo = () => {
   _selfMediaStream?.getTracks().forEach((t) => t.stop());
