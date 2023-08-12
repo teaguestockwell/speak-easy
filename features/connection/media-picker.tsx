@@ -75,7 +75,9 @@ const onSelect = (v: V) => async () => {
     }
 
     connectionStore.lpc.connectCall(ms);
-  } catch {
+  } catch (e) {
+    console.error(e)
+    alert("please enable camera access in your device settings")
     connectionStore.lpc.connectCall(ms);
   }
 };

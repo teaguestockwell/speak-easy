@@ -46,9 +46,10 @@ input,
 textarea {
   width: auto;
   border: none;
-  border-radius: var(--rad);
+  border-radius: calc(var(--rad) * 4);
   min-height: 40px;
   background-color: var(--bgc-2);
+  padding-inline: 10px;
 }
 
 button {

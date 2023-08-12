@@ -1,4 +1,4 @@
-import { Button, Upload } from "../../components";
+import { Upload } from "../../components";
 import { Icon } from "../../components/icon";
 import cn from "./bottom-nav.module.css";
 import { useStore, connectionStore } from "./connection-store";
@@ -9,9 +9,10 @@ export const BottomNav = (): JSX.Element | null => {
   if (s.status === "enter-self-id") {
     return (
       <div className={cn.root}>
-        <div className={cn.col}>
-          <label htmlFor="your id">your id</label>
+        <label htmlFor="your id">your id</label>
+        <div className={cn.row}>
           <input
+            className={cn.input}
             id="your id"
             autoComplete="off"
             value={s.selfId}
@@ -23,13 +24,11 @@ export const BottomNav = (): JSX.Element | null => {
               }
             }}
           />
+          <Icon
+            name="arrowUp"
+            onClick={() => connectionStore.lpc.publishToBroker(undefined)}
+          />
         </div>
-        <Button
-          className={cn.but}
-          onClick={() => connectionStore.lpc.publishToBroker(undefined)}
-        >
-          continue
-        </Button>
       </div>
     );
   }
@@ -40,21 +39,25 @@ export const BottomNav = (): JSX.Element | null => {
     return (
       <div className={cn.root}>
         <label htmlFor="peer id">peer id</label>
-        <input
-          id="peer id"
-          autoComplete="off"
-          value={s.peerId}
-          onChange={connectionStore.lpc.setPeerId}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              connectionStore.lpc.connectPeer(undefined);
-              e.preventDefault();
-            }
-          }}
-        />
-        <Button className={cn.but} onClick={() => connectionStore.lpc.connectPeer(undefined)}>
-          connect
-        </Button>
+        <div className={cn.row}>
+          <input
+            className={cn.input}
+            id="peer id"
+            autoComplete="off"
+            value={s.peerId}
+            onChange={connectionStore.lpc.setPeerId}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                connectionStore.lpc.connectPeer(undefined);
+                e.preventDefault();
+              }
+            }}
+          />
+          <Icon
+            name="arrowUp"
+            onClick={() => connectionStore.lpc.connectPeer(undefined)}
+          />
+        </div>
       </div>
     );
   }
@@ -71,21 +74,21 @@ export const BottomNav = (): JSX.Element | null => {
         )}
         <div className={cn.row}>
           <Upload onFile={connectionStore.lpc.sendFile} />
-          <textarea
+          <input
             aria-label="message peer"
-            className={cn.ta}
+            className={cn.input}
+            autoComplete="off"
             value={s.msg}
             onChange={connectionStore.lpc.setMsg}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
-                connectionStore.lpc.sendMsg(undefined)
+                connectionStore.lpc.sendMsg(undefined);
                 e.preventDefault();
               }
             }}
           />
           <Icon
-            sx={{ marginBottom: 4 }}
-            name="comment"
+            name="arrowUp"
             onClick={() => connectionStore.lpc.sendMsg(undefined)}
           />
         </div>
