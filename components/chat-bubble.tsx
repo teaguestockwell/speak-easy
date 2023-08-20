@@ -3,17 +3,48 @@ import React from "react";
 import { Button } from "./button";
 import cn from "./chat-bubble.module.css";
 
-const imgExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"];
+const imgExtensions = [
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "bmp",
+  "webp",
+  "svg",
+  "tiff",
+  "ico",
+  "psd",
+];
+const videoExtensions = [
+  "mp4",
+  "webm",
+  "ogg",
+  "mov",
+  "avi",
+  "wmv",
+  "flv",
+  "mkv",
+  "mpg",
+  "mpeg",
+  "m4v",
+  "3gp",
+  "vob",
+  "mp3",
+  "wav",
+  "flac",
+  "aac",
+  "m4a",
+  "wma",
+  "ape",
+];
 
-const isImgLike = (f: File, msg: string) => {
-  const imgLike = imgExtensions.some(
-    (ext) =>
-      f.type?.toLowerCase?.()?.endsWith(ext) ||
-      msg?.toLowerCase()?.endsWith(ext) ||
-      f.name.toLowerCase().endsWith(ext)
+const oneOf = (f: File, msg: string, arr: string[]) => {
+  const name = f.name?.toLowerCase() ?? "";
+  const type = f.type?.toLowerCase() ?? "";
+  const message = msg.toLowerCase() ?? "";
+  return arr.some(
+    (e) => name.endsWith(e) || type.endsWith(e) || message.endsWith(e)
   );
-  console.log({ imgLike, f, msg });
-  return imgLike;
 };
 
 export type ChatBubbleProps = {
@@ -30,11 +61,18 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
     const style = {
       alignSelf: p.variant === "theirs" ? "flex-start" : "flex-end",
     };
-    const [src, setSrc] = React.useState<string>()
+    const [src, setSrc] = React.useState<string>();
+    const [mediaType, setMediaType] = React.useState<"img" | "video">();
     React.useEffect(() => {
       const f = p.getFile?.();
-      if (f && isImgLike(f, p.msg)) {
-        setSrc(URL.createObjectURL(f))
+      if (f) {
+        setSrc(URL.createObjectURL(f));
+      }
+
+      if (f && oneOf(f, p.msg, imgExtensions)) {
+        setMediaType("img");
+      } else if (f && oneOf(f, p.msg, videoExtensions)) {
+        setMediaType("video");
       }
 
       return () => {
@@ -46,7 +84,23 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
     return (
       <div ref={ref} className={cn.root} style={style}>
         {!p.downloadFile && <span className={cn.msg}>{p.msg}</span>}
-        {src && <img alt={p.msg} src={src} className={cn.img} />}
+        {src && mediaType === "img" && (
+          <img
+            alt={p.msg}
+            src={src}
+            className={cn.img}
+            onError={() => setMediaType(undefined)}
+          />
+        )}
+        {src && mediaType === "video" && (
+          <video
+            src={src}
+            className={cn.img}
+            controls
+            playsInline
+            onError={() => setMediaType(undefined)}
+          />
+        )}
         {p.downloadFile && !src && (
           <Button className={cn.button} onClick={p.downloadFile}>
             {p.msg}
