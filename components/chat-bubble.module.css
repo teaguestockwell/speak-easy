@@ -40,3 +40,11 @@
   white-space: pre-wrap;
   padding: var(--pad);
 }
+
+.img {
+  max-height: 700px;
+  width: 100%;
+  object-fit: contain;
+  border-radius: var(--rad);
+  overflow: hidden;
+}

@@ -27,6 +27,7 @@ const ConnectedChatBubble = (p: State["msgs"][number]) => {
       downloadFile={
         isDone ? () => connectionStore.lpc.downloadFile(p.fileKey!) : undefined
       }
+      getFile={isDone ? () => connectionStore.lpc.getFile(p.fileKey!) : undefined}
     />
   );
 };
@@ -41,12 +42,20 @@ export const Content = (): JSX.Element | null => {
     if (status === "call-connected") {
       getSelfMediaStream().then((self) => {
         if (selfVideo.current && self) {
-          selfVideo.current!.srcObject = self;
+          try {
+            selfVideo.current.srcObject = self;
+          } catch {
+            selfVideo.current.src = URL.createObjectURL(self as any)
+          }
         }
       });
       getPeerMediaStream().then((peer) => {
         if (peerVideo.current && peer) {
-          peerVideo.current!.srcObject = peer;
+          try {
+            peerVideo.current.srcObject = peer;
+          } catch {
+            peerVideo.current.src = URL.createObjectURL(peer as any)
+          }
         }
       });
     }

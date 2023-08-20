@@ -52,6 +52,7 @@ export type Lpcs = {
   autoConnectToPeer: (peerIs: string) => void;
   sendFile: (f: File) => Promise<void>;
   downloadFile: (k: string) => void;
+  getFile: (k: string) => File | undefined;
   requestCall: () => void;
   connectCall: (m: MediaStream | undefined) => void;
   endCall: () => void;
@@ -390,6 +391,25 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
+      },
+      getFile: (k: string) => {
+        const { files } = get();
+        const file = files[k];
+        if (!file || !file.file) {
+          alert("file not found");
+          return;
+        }
+
+        if (file.left !== file.right) {
+          alert("file still downloading");
+          return;
+        }
+
+        if (!file.file) {
+          alert("no file")
+        }
+
+        return file.file
       },
       requestCall: () => {
         set({ status: "select-media", selectMediaVariant: "requestor" });
