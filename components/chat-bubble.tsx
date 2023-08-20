@@ -83,7 +83,6 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
     }, [!p.getFile, p.msg]);
     return (
       <div ref={ref} className={cn.root} style={style}>
-        {!p.downloadFile && <span className={cn.msg}>{p.msg}</span>}
         {src && mediaType === "img" && (
           <img
             alt={p.msg}
@@ -101,7 +100,8 @@ const _ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
             onError={() => setMediaType(undefined)}
           />
         )}
-        {p.downloadFile && !src && (
+        {!p.downloadFile && <span className={cn.msg}>{p.msg}</span>}
+        {p.downloadFile && (
           <Button className={cn.button} onClick={p.downloadFile}>
             {p.msg}
           </Button>
