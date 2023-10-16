@@ -193,11 +193,16 @@ const addListeners = (peerCon: MediaConnection) => {
   });
 };
 
+export const constants = {
+  skipSelfIdSelectKey: "skipSelfIdSelectKey"
+}
+
 export const connectionStore = create<RPCs, State, Lpcs>(
   ({ get, set, lpc, rpc, pipe }) => ({
     state: getInitState(),
     lpcs: {
       backToSelfIdSelection: () => {
+        localStorage.removeItem(constants.skipSelfIdSelectKey)
         window.location.reload();
       },
       autoConnectToPeer: (peerId) => {

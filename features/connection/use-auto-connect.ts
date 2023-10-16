@@ -1,8 +1,7 @@
 import React from "react";
 import { useRouter } from "next/router";
-import { connectionStore } from "./connection-store";
+import { connectionStore, constants } from "./connection-store";
 
-const hasSeenIntro = "hasSeenIntro";
 export const useAutoConnect = () => {
   const router = useRouter();
   React.useEffect(() => {
@@ -17,10 +16,10 @@ export const useAutoConnect = () => {
             "",
             newUrl
           );
-        } else if (localStorage.getItem(hasSeenIntro)) {
+        } else if (localStorage.getItem(constants.skipSelfIdSelectKey)) {
           connectionStore.lpc.publishToBroker(undefined);
         } else {
-          localStorage.setItem(hasSeenIntro, "true");
+          localStorage.setItem(constants.skipSelfIdSelectKey, "1");
         }
       }
     }
