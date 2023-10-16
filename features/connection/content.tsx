@@ -27,7 +27,9 @@ const ConnectedChatBubble = (p: State["msgs"][number]) => {
       downloadFile={
         isDone ? () => connectionStore.lpc.downloadFile(p.fileKey!) : undefined
       }
-      getFile={isDone ? () => connectionStore.lpc.getFile(p.fileKey!) : undefined}
+      getFile={
+        isDone ? () => connectionStore.lpc.getFile(p.fileKey!) : undefined
+      }
     />
   );
 };
@@ -45,7 +47,7 @@ export const Content = (): JSX.Element | null => {
           try {
             selfVideo.current.srcObject = self;
           } catch {
-            selfVideo.current.src = URL.createObjectURL(self as any)
+            selfVideo.current.src = URL.createObjectURL(self as any);
           }
         }
       });
@@ -54,7 +56,7 @@ export const Content = (): JSX.Element | null => {
           try {
             peerVideo.current.srcObject = peer;
           } catch {
-            peerVideo.current.src = URL.createObjectURL(peer as any)
+            peerVideo.current.src = URL.createObjectURL(peer as any);
           }
         }
       });
@@ -82,7 +84,8 @@ export const Content = (): JSX.Element | null => {
       window.location.origin +
       window.location.pathname +
       `?peer=${encodeURIComponent(selfId)}`;
-    const copy = () => copyTextToClipboard(url);
+    const copy = () =>
+      copyTextToClipboard(url, () => alert("copied to clipboard"));
     return (
       <div className={cn.flexCol}>
         <QrCode
@@ -92,10 +95,9 @@ export const Content = (): JSX.Element | null => {
             `?peer=${encodeURIComponent(selfId)}`
           }
         />
-        <span className={cn.title}>connect to peer</span>
-        <span className={cn.subTitle}>your id is: {selfId}</span>
         <Button className={cn.but} onClick={copy}>
-          copy magic link
+          {selfId}
+          <Icon name="share" size={20} color="var(--bgc-0)" />
         </Button>
       </div>
     );
