@@ -57,6 +57,7 @@ export type Lpcs = {
   connectCall: (m: MediaStream | undefined) => void;
   endCall: () => void;
   setFileProgress: (id: string) => void;
+  backToSelfIdSelection: () => void;
 };
 
 export type RPCs = {
@@ -196,6 +197,9 @@ export const connectionStore = create<RPCs, State, Lpcs>(
   ({ get, set, lpc, rpc, pipe }) => ({
     state: getInitState(),
     lpcs: {
+      backToSelfIdSelection: () => {
+        window.location.reload();
+      },
       autoConnectToPeer: (peerId) => {
         set({
           ...getInitState(),
@@ -406,10 +410,10 @@ export const connectionStore = create<RPCs, State, Lpcs>(
         }
 
         if (!file.file) {
-          alert("no file")
+          alert("no file");
         }
 
-        return file.file
+        return file.file;
       },
       requestCall: () => {
         set({ status: "select-media", selectMediaVariant: "requestor" });

@@ -33,13 +33,13 @@ export const Loader = (): JSX.Element | null => {
 
   const loader = (
     <div className={cn.root}>
-      {text && <span>{text}</span>}
       <div className={cn.spinner}>
         <div></div>
         <div></div>
         <div></div>
         <div></div>
       </div>
+      {text && <span>{text}</span>}
     </div>
   );
 

@@ -29,7 +29,17 @@ export const TopNav = (): JSX.Element | null => {
     return null;
   }
   if (status == "awaiting-peer") {
-    return null;
+    return (
+      <Nav
+        left={
+          <Icon
+            name="back"
+            onClick={() => connectionStore.lpc.backToSelfIdSelection()}
+          />
+        }
+        center={<span>connect to peer</span>}
+      />
+    );
   }
   if (status === "connecting-peer") {
     return null;
@@ -38,10 +48,18 @@ export const TopNav = (): JSX.Element | null => {
     return (
       <Nav
         left={
-          <Icon name="back" onClick={() => connectionStore.lpc.backToPeerSelection(undefined)} />
+          <Icon
+            name="back"
+            onClick={() => connectionStore.lpc.backToPeerSelection(undefined)}
+          />
         }
         center={<span>peer id: {peerId}</span>}
-        right={<Icon name="call" onClick={() => connectionStore.lpc.requestCall(undefined)} />}
+        right={
+          <Icon
+            name="call"
+            onClick={() => connectionStore.lpc.requestCall(undefined)}
+          />
+        }
       />
     );
   }
@@ -54,7 +72,12 @@ export const TopNav = (): JSX.Element | null => {
   if (status === "call-connected") {
     return (
       <Nav
-        left={<Icon name="back" onClick={() => connectionStore.lpc.endCall(undefined)} />}
+        left={
+          <Icon
+            name="back"
+            onClick={() => connectionStore.lpc.endCall(undefined)}
+          />
+        }
         center={<span>{peerId}</span>}
       />
     );
