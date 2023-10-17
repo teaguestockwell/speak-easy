@@ -19,12 +19,14 @@ export function copyTextToClipboard(
 
       const successful = document.execCommand("copy");
       document.body.removeChild(textArea);
-      if (!successful) throw "";
+      if (successful) {
+        onSuccess?.();
+      } else {
+        onError?.();
+      }
     } else {
       navigator.clipboard.writeText(text).then(onSuccess, onError);
     }
-    onSuccess?.();
   } catch {
-    onError?.();
   }
 }
