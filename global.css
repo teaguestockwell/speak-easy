@@ -40,6 +40,8 @@ body {
   margin: 0;
   height: auto;
   background-color: var(--bgc-0) !important;
+  position: fixed;
+  inset: 0;
 }
 
 input,
