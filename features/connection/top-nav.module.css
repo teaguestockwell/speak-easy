@@ -24,15 +24,9 @@
   gap: calc(var(--pad) * 2);
 }
 
-.left {
+.right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: calc(var(--pad) * 2);
-}
-
-.centerRow {
-  display: flex;
-  gap: var(--pad);
-  align-items: center;
 }

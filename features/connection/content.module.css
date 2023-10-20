@@ -45,14 +45,15 @@
 }
 
 .but {
-  min-height: 40px;
+  min-height: 50px;
   background-color: var(--fc-0);
   color: var(--bgc-0);
   width: auto;
   border: none;
-  border-radius: var(--rad);
+  border-radius: calc(var(--rad) * 3);
   margin: 0;
   gap: var(--pad);
   display: flex;
   align-items: center;
+  padding-inline: calc(var(--pad) * 2)
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "./button";
+import cn from "./icon.module.css";
 
 // https://fluenticons.co/
 const icons = {
@@ -12,26 +13,27 @@ const icons = {
   videoCall:
     "M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 1.643.397 3.23 1.145 4.65L2.029 20.94a.85.85 0 0 0 1.036 1.036l4.29-1.117A9.96 9.96 0 0 0 12 22c5.523 0 10-4.477 10-10ZM12 8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h3Zm3 5.162v-2.324l1.734-1.642A.75.75 0 0 1 18 9.741v4.518a.75.75 0 0 1-1.266.545L15 13.162Z",
   plus: "M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2Zm0 5a.75.75 0 0 0-.743.648l-.007.102v3.5h-3.5a.75.75 0 0 0-.102 1.493l.102.007h3.5v3.5a.75.75 0 0 0 1.493.102l.007-.102v-3.5h3.5a.75.75 0 0 0 .102-1.493l-.102-.007h-3.5v-3.5A.75.75 0 0 0 12 7Z",
-  arrowUp: "M22 12.001c0-5.523-4.476-10-10-10-5.522 0-10 4.477-10 10s4.478 10 10 10c5.524 0 10-4.477 10-10Zm-14.53.28a.75.75 0 0 1-.073-.976l.073-.085 4-4a.75.75 0 0 1 .977-.073l.085.073 4 4.001a.75.75 0 0 1-.977 1.133l-.084-.072-2.72-2.722v6.691a.75.75 0 0 1-.649.744L12 17a.75.75 0 0 1-.743-.648l-.007-.102v-6.69l-2.72 2.72a.75.75 0 0 1-.976.073l-.084-.073Z"
+  arrowUp:
+    "M22 12.001c0-5.523-4.476-10-10-10-5.522 0-10 4.477-10 10s4.478 10 10 10c5.524 0 10-4.477 10-10Zm-14.53.28a.75.75 0 0 1-.073-.976l.073-.085 4-4a.75.75 0 0 1 .977-.073l.085.073 4 4.001a.75.75 0 0 1-.977 1.133l-.084-.072-2.72-2.722v6.691a.75.75 0 0 1-.649.744L12 17a.75.75 0 0 1-.743-.648l-.007-.102v-6.69l-2.72 2.72a.75.75 0 0 1-.976.073l-.084-.073Z",
 } as const;
 
 type IconProps = {
   size?: number;
-  name: keyof typeof icons;
+  name: keyof typeof icons | null;
   color?: string;
   bgColor?: string;
   onClick?: () => unknown;
   sx?: React.CSSProperties;
-  buttonProps?: React.ButtonHTMLAttributes<any>
+  buttonProps?: React.ButtonHTMLAttributes<any>;
 };
 
 export const Icon = React.forwardRef<
   SVGSVGElement | HTMLButtonElement,
   IconProps
->((p, ref) => {
+>((p, ref: any) => {
   const { size = 34, name, color = "var(--fc-0)", bgColor = "none", sx } = p;
 
-  const i = (
+  const i = name && (
     <svg
       ref={p.onClick ? undefined : (ref as any)}
       width={size}
@@ -55,6 +57,11 @@ export const Icon = React.forwardRef<
 
   return (
     <Button
+      className={
+        p.buttonProps?.className
+          ? p.buttonProps?.className + " " + cn.icon
+          : cn.icon
+      }
       {...p.buttonProps}
       style={{
         background: "none",

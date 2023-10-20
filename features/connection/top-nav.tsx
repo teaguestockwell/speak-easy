@@ -17,6 +17,8 @@ const Nav = (p: {
   );
 };
 
+const NoopIcon = () => <Icon onClick={() => {}} name={null} />;
+
 export const TopNav = (): JSX.Element | null => {
   const status = useStore((s) => s.status);
   const peerId = useStore((s) => s.peerId);
@@ -38,6 +40,7 @@ export const TopNav = (): JSX.Element | null => {
           />
         }
         center={<span>connect to peer</span>}
+        right={<NoopIcon />}
       />
     );
   }
@@ -79,6 +82,7 @@ export const TopNav = (): JSX.Element | null => {
           />
         }
         center={<span>{peerId}</span>}
+        right={<NoopIcon />}
       />
     );
   }

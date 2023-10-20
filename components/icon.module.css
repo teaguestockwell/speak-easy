@@ -1,0 +1,9 @@
+.icon {
+  position: relative;
+}
+
+.icon:after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
