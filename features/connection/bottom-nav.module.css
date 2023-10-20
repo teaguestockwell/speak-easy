@@ -8,6 +8,12 @@
   padding-bottom: max(env(safe-area-inset-bottom), calc(var(--pad) * 2));
 }
 
+@media only screen and (max-width: 768px) {
+  .rootKeyboard {
+    padding-bottom: var(--pad);
+  }
+}
+
 .row {
   display: flex;
   flex-direction: row;

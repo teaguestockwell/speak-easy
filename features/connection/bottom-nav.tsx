@@ -1,3 +1,4 @@
+import React from "react";
 import { Upload } from "../../components";
 import { Icon } from "../../components/icon";
 import cn from "./bottom-nav.module.css";
@@ -5,10 +6,12 @@ import { useStore, connectionStore } from "./connection-store";
 
 export const BottomNav = (): JSX.Element | null => {
   const s = useStore((s) => s);
+  const [active, setActive] = React.useState(false)
+  const root = active ? cn.root + " " + cn.rootKeyboard : cn.root
 
   if (s.status === "enter-self-id") {
     return (
-      <div className={cn.root}>
+      <div className={root}>
         <label htmlFor="your id">your id</label>
         <div className={cn.row}>
           <input
@@ -23,6 +26,8 @@ export const BottomNav = (): JSX.Element | null => {
                 e.preventDefault();
               }
             }}
+            onFocus={() => setTimeout(() => setActive(true))}
+            onBlur={() => setTimeout(() => setActive(false))}
           />
           <Icon
             name="arrowUp"
@@ -37,7 +42,7 @@ export const BottomNav = (): JSX.Element | null => {
   }
   if (s.status == "awaiting-peer") {
     return (
-      <div className={cn.root}>
+      <div className={root}>
         <label htmlFor="peer id">peer id</label>
         <div className={cn.row}>
           <input
@@ -52,6 +57,8 @@ export const BottomNav = (): JSX.Element | null => {
                 e.preventDefault();
               }
             }}
+            onFocus={() => setTimeout(() => setActive(true))}
+            onBlur={() => setTimeout(() => setActive(false))}
           />
           <Icon
             name="arrowUp"
@@ -66,7 +73,7 @@ export const BottomNav = (): JSX.Element | null => {
   }
   if (s.status === "connected") {
     return (
-      <div className={cn.root}>
+      <div className={root}>
         {s.isPeerTyping && (
           <div className={cn.row}>
             <span>{s.peerId + " is typing..."}</span>
@@ -86,6 +93,8 @@ export const BottomNav = (): JSX.Element | null => {
                 e.preventDefault();
               }
             }}
+            onFocus={() => setTimeout(() => setActive(true))}
+            onBlur={() => setTimeout(() => setActive(false))}
           />
           <Icon
             name="arrowUp"
