@@ -4,7 +4,8 @@
   flex-direction: column;
   gap: var(--pad);
   padding-inline: calc(var(--pad) * 1);
-  padding-block: calc(var(--pad) * 2);
+  padding-top: calc(var(--pad) * 2);
+  padding-bottom: max(env(safe-area-inset-bottom), calc(var(--pad) * 2));
 }
 
 .row {
