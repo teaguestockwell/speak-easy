@@ -10,7 +10,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/teaguestockwell/speak-easy">
-    <img src="https://user-images.githubusercontent.com/71202372/183279390-33800f61-abbe-4bf7-b174-86fe7b553acc.png" alt="Logo" height="400">
+    <img src="https://github.com/teaguestockwell/speak-easy/assets/71202372/7b1b62e3-7315-4fd5-9b12-a7976c143079" alt="Logo" height="400">
   </a>
 
   <h3 align="center">Speak Easy</h3>
@@ -37,7 +37,7 @@
 <!-- ABOUT THE PROJECT -->
 
 ## About The Project
-A chat pwa using webtrc and [peerjs](https://github.com/peers/peerjs). You can video chat, screen share, shares files (up to 300MB) and text.
+A chat pwa using [udp-rpc-bridge](https://github.com/teaguestockwell/udp-rpc-bridge) and [peerjs](https://github.com/peers/peerjs). You can video chat, screen share, shares files (up to 300MB) and text.
 
 ## Getting Started
 To get a local copy up and running follow these simple steps.
