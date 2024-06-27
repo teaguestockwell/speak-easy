@@ -18,7 +18,7 @@
   <p align="center">
     An end to end encrypted peer to peer chat client
     <br />
-    <a href="https://github.com/teaguestockwell/speak-easy">Live App</a>
+    <a href="https://speak-easy-nu.vercel.app">Live App</a>
     ·
     <a href="https://github.com/teaguestockwell/speak-easy/issues">Report Bug</a>
   </p>
